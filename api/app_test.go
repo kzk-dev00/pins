@@ -175,6 +175,13 @@ func TestRouting(t *testing.T) {
 	e.do(guest(tokenA), http.MethodPut, "/categories", "").expectError(http.StatusMethodNotAllowed, "method_not_allowed")
 }
 
+func TestPreflight(t *testing.T) {
+	e := newTestEnv(t)
+	// ブラウザのプリフライトにはゲストトークンが付かないので、トークンなしでも成功する
+	e.do(anonymous, http.MethodOptions, "/categories", "").expect(http.StatusNoContent)
+	e.do(anonymous, http.MethodOptions, "/categories/ABCDEFGHIJ/pins", "").expect(http.StatusNoContent)
+}
+
 func TestGuestToken(t *testing.T) {
 	e := newTestEnv(t)
 	e.do(anonymous, http.MethodGet, "/categories", "").expectError(http.StatusUnauthorized, "unauthorized")

@@ -88,8 +88,12 @@ func (a *App) Handle(ctx context.Context, req events.APIGatewayV2HTTPRequest) (e
 }
 
 func (a *App) dispatch(ctx context.Context, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
-	segments := strings.Split(strings.Trim(requestPath(req), "/"), "/")
 	method := req.RequestContext.HTTP.Method
+	// ANY /{proxy+} だと CORS のプリフライトもここに届く。CORS のヘッダーは API Gateway が付けるので、成功だけ返す
+	if method == http.MethodOptions {
+		return noContent()
+	}
+	segments := strings.Split(strings.Trim(requestPath(req), "/"), "/")
 	pathMatched := false
 	for _, rt := range a.routes {
 		params, ok := matchPattern(rt.pattern, segments)

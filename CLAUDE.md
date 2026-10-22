@@ -6,13 +6,13 @@
 
 ## 構成
 
-- `api/`：BE（Go / AWS Lambda / DynamoDB）。これから作る
+- `api/`：BE（Go / AWS Lambda / DynamoDB）。使い方は `api/README.md`
 - `web/`：FE（Next.js）。これから作る
 
 ## 作業のルール
 
 - やりとりは日本語
-- コミットメッセージは日本語で短く書く（例：「README更新」）。React・Next.js などの固有名詞はカタカナにせずそのまま書く
+- コミットメッセージは日本語で短く書く（例：「README更新」）
 - AWS のリージョンはシドニー（`ap-southeast-2`）。無料プランの制限でシドニーになっている
 - AWS リソース名は `pin-memo-<環境>-<用途>`（例：`pin-memo-dev-api`）
 - AWS アカウントは新しいシンプル版。「高度な機能を有効にする」に関わる操作はしない
