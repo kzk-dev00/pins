@@ -7,6 +7,9 @@ const nextConfig: NextConfig = {
   // （nextjs-agent-rules の部分）を自動で追加・書き戻さないようにする。
   // 内容は「同梱のドキュメント node_modules/next/dist/docs/ を読む」で、日本語の AGENTS.md に同じことを書いている
   agentRules: false,
+  // 開発中に左下に出る Next.js の「N」の表示を消す（メモのシートのボタンと重なるため）。
+  // 消してもコンパイルや実行時のエラーは画面に表示される
+  devIndicators: false,
   cacheComponents: true,
   partialPrefetching: true,
 };

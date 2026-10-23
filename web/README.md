@@ -41,10 +41,14 @@ npm run dev
 | `src/components/PinMemo/MapLoader.tsx` | 地図をブラウザでだけ読み込む（`ssr: false`） |
 | `src/components/PinMemo/Map.tsx` | 地図、ピン、メモ入力シート |
 | `src/components/PinMemo/Map.module.css` | 地図まわりのスタイル |
+| `src/components/PinMemo/Menu.tsx` | 右上の ☰ から開くメニュー（カテゴリ一覧・追加） |
+| `src/components/PinMemo/Menu.module.css` | メニューのスタイル |
 | `src/lib/api.ts` | API の呼び出し |
 | `src/lib/guestToken.ts` | ゲストトークン（localStorage に保存） |
 | `src/lib/config.ts` | 環境変数から読む設定（地図の初期位置） |
 | `src/lib/lastView.ts` | 最後に見ていた地図の位置（localStorage に保存） |
+| `src/lib/hiddenCategories.ts` | 表示を OFF にしたカテゴリの ID（localStorage に保存） |
+| `src/lib/categoryColors.ts` | カテゴリの8色と、次に使う色 |
 | `scripts/copy-maplibre-worker.mjs` | MapLibre の Web Worker を `public/` にコピーする。`npm run dev` / `build` の前に自動で実行される |
 
 MapLibre は Worker を本体のファイルの隣から読もうとするが、Next.js（Turbopack）でまとめるとそこに Worker がなくなり、地図が描画されない。そのため `public/` から配信し、`setWorkerUrl` で場所を指定している。

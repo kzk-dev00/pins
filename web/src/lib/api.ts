@@ -80,6 +80,14 @@ export function createCategory(input: { name: string; color?: string }): Promise
   return request("POST", "/categories", input);
 }
 
+export function updateCategory(categoryId: string, input: { name?: string; color?: string }): Promise<Category> {
+  return request("PATCH", `/categories/${categoryId}`, input);
+}
+
+export function deleteCategory(categoryId: string): Promise<void> {
+  return request("DELETE", `/categories/${categoryId}`);
+}
+
 export async function listPins(categoryId?: string): Promise<Pin[]> {
   const query = categoryId ? `?categoryId=${encodeURIComponent(categoryId)}` : "";
   const data = await request<{ pins: Pin[] }>("GET", `/pins${query}`);
