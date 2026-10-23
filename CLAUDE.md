@@ -7,7 +7,7 @@
 ## 構成
 
 - `api/`：BE（Go / AWS Lambda / DynamoDB）。使い方は `api/README.md`
-- `web/`：FE（Next.js）。これから作る
+- `web/`：FE（Next.js）。使い方は `web/README.md`
 
 ## 作業のルール
 
