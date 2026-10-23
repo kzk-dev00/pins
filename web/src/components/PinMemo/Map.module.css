@@ -3,6 +3,16 @@
   inset: 0;
 }
 
+/* シートを開いているあいだは、右下の帰属表示（© OpenStreetMap など）をシートの上に持ち上げる。
+   帰属表示は無料で使う条件なので隠さない。シートのボタンとも重ならないようにする */
+.root :global(.maplibregl-ctrl-bottom-right) {
+  transition: bottom 0.15s ease;
+}
+
+.root[data-sheet-open] :global(.maplibregl-ctrl-bottom-right) {
+  bottom: var(--sheet-height);
+}
+
 .hint {
   position: fixed;
   top: calc(12px + env(safe-area-inset-top, 0px));

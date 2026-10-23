@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import Map, {
   GeolocateControl,
   Marker,
@@ -55,6 +55,10 @@ export default function PinMemoMap() {
   const geolocateRef = useRef<GeolocateControlInstance>(null);
   // 前回見ていた位置。初回（保存なし）は null
   const [lastView] = useState(loadLastView);
+  // シートの高さ。開いているあいだ、右下の帰属表示をこの分だけ持ち上げてボタンと重ならないようにする
+  const sheetRef = useRef<HTMLFormElement>(null);
+  const [sheetHeight, setSheetHeight] = useState(0);
+  const sheetOpen = editing !== null;
 
   useEffect(() => {
     let cancelled = false;
@@ -74,6 +78,14 @@ export default function PinMemoMap() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    const sheet = sheetRef.current;
+    if (!sheetOpen || !sheet) return;
+    const observer = new ResizeObserver(() => setSheetHeight(sheet.offsetHeight));
+    observer.observe(sheet);
+    return () => observer.disconnect();
+  }, [sheetOpen]);
 
   // Esc でシートを閉じる
   useEffect(() => {
@@ -151,7 +163,11 @@ export default function PinMemoMap() {
   };
 
   return (
-    <div className={styles.root}>
+    <div
+      className={styles.root}
+      data-sheet-open={sheetOpen || undefined}
+      style={{ "--sheet-height": `${sheetHeight}px` } as CSSProperties}
+    >
       <Map
         // 前回の位置から開く。初回は環境変数の初期位置（東京駅）
         initialViewState={lastView ?? DEFAULT_VIEW}
@@ -213,7 +229,7 @@ export default function PinMemoMap() {
       </div>
 
       {editing && (
-        <form className={styles.sheet} onSubmit={handleSave}>
+        <form ref={sheetRef} className={styles.sheet} onSubmit={handleSave}>
           <h2 className={styles.sheetTitle}>{editing.pin ? "メモを編集" : "メモを追加"}</h2>
           <div className={styles.coord}>
             {editing.lat.toFixed(5)}, {editing.lng.toFixed(5)}
