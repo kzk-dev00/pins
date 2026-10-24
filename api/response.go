@@ -41,8 +41,8 @@ func categoryLimitError(max int) *apiError {
 	return &apiError{http.StatusConflict, "category_limit", fmt.Sprintf("カテゴリは%d件まで作成できます", max)}
 }
 
-func pinLimitError(max int) *apiError {
-	return &apiError{http.StatusConflict, "pin_limit", fmt.Sprintf("1つのカテゴリに登録できるピンは%d件までです", max)}
+func pinLimitError(categoryName string, max int) *apiError {
+	return &apiError{http.StatusConflict, "pin_limit", fmt.Sprintf("「%s」に登録できるピンは%d件までです", categoryName, max)}
 }
 
 func jsonHeaders() map[string]string {

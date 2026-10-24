@@ -65,10 +65,10 @@ func NewApp(store Store, cfg Config) *App {
 		{http.MethodPost, []string{"categories", "*", "share"}, false, a.shareCategory},
 		{http.MethodDelete, []string{"categories", "*", "share"}, false, a.unshareCategory},
 		{http.MethodGet, []string{"pins"}, false, a.listPins},
-		{http.MethodPost, []string{"categories", "*", "pins"}, false, a.createPin},
-		{http.MethodPatch, []string{"categories", "*", "pins", "*"}, false, a.updatePin},
-		{http.MethodDelete, []string{"categories", "*", "pins", "*"}, false, a.deletePin},
-		{http.MethodGet, []string{"s", "*"}, true, a.getShared},
+		{http.MethodPost, []string{"pins"}, false, a.createPin},
+		{http.MethodPatch, []string{"pins", "*"}, false, a.updatePin},
+		{http.MethodDelete, []string{"pins", "*"}, false, a.deletePin},
+		{http.MethodGet, []string{"share", "*"}, true, a.getShared},
 	}
 	return a
 }
@@ -281,13 +281,38 @@ func (a *App) deleteCategory(ctx context.Context, r *request) (events.APIGateway
 	if err != nil {
 		return events.APIGatewayV2HTTPResponse{}, err
 	}
-	// 途中で失敗してもピンだけが残らないように、ピンを先に消す
-	pins, err := a.store.ListPins(ctx, c.OwnerID, c.CategoryID)
+	// 残りのカテゴリの期限から、ピンの期限を計算し直すために使う
+	cats, err := a.activeCategories(ctx, c.OwnerID)
+	if err != nil {
+		return events.APIGatewayV2HTTPResponse{}, err
+	}
+	catByID := make(map[string]Category, len(cats))
+	for _, cat := range cats {
+		catByID[cat.CategoryID] = cat
+	}
+
+	// 途中で失敗しても「消えたカテゴリを指すピン」が残らないように、ピンを先に直す
+	pins, err := a.store.ListPins(ctx, c.OwnerID)
 	if err != nil {
 		return events.APIGatewayV2HTTPResponse{}, err
 	}
 	for _, p := range pins {
-		if err := a.store.DeletePin(ctx, p.OwnerID, p.CategoryID, p.PinID); err != nil && !errors.Is(err, ErrNotFound) {
+		if !p.hasCategory(c.CategoryID) {
+			continue
+		}
+		p.CategoryIDs = slices.DeleteFunc(p.CategoryIDs, func(id string) bool { return id == c.CategoryID })
+		if len(p.CategoryIDs) == 0 {
+			// どのカテゴリにも入らなくなったピンは削除する
+			if err := a.store.DeletePin(ctx, p.OwnerID, p.PinID); err != nil && !errors.Is(err, ErrNotFound) {
+				return events.APIGatewayV2HTTPResponse{}, err
+			}
+			continue
+		}
+		if exp, ok := latestExpiry(p.CategoryIDs, catByID); ok {
+			p.ExpiresAt = exp
+		}
+		p.UpdatedAt = a.timestamp()
+		if err := a.store.UpdatePin(ctx, p); err != nil && !errors.Is(err, ErrNotFound) {
 			return events.APIGatewayV2HTTPResponse{}, err
 		}
 	}
@@ -335,9 +360,10 @@ func (a *App) unshareCategory(ctx context.Context, r *request) (events.APIGatewa
 // ---- ピン ----
 
 type pinInput struct {
-	Lat  *float64 `json:"lat"`
-	Lng  *float64 `json:"lng"`
-	Memo *string  `json:"memo"`
+	Lat         *float64  `json:"lat"`
+	Lng         *float64  `json:"lng"`
+	Memo        *string   `json:"memo"`
+	CategoryIDs *[]string `json:"categoryIds"`
 }
 
 func (in *pinInput) validate() error {
@@ -350,17 +376,24 @@ func (in *pinInput) validate() error {
 	if in.Memo != nil && !validMemo(*in.Memo) {
 		return invalidInput("メモは200文字以内で入力してください")
 	}
+	if in.CategoryIDs != nil {
+		ids := *in.CategoryIDs
+		if len(ids) == 0 {
+			return invalidInput("カテゴリを1つ以上選んでください")
+		}
+		seen := make(map[string]bool, len(ids))
+		for _, id := range ids {
+			if seen[id] {
+				return invalidInput("同じカテゴリが2回指定されています")
+			}
+			seen[id] = true
+		}
+	}
 	return nil
 }
 
 func (a *App) listPins(ctx context.Context, r *request) (events.APIGatewayV2HTTPResponse, error) {
-	categoryID := r.QueryStringParameters["categoryId"]
-	if categoryID != "" {
-		if _, err := a.loadCategory(ctx, r.owner.id, categoryID); err != nil {
-			return events.APIGatewayV2HTTPResponse{}, err
-		}
-	}
-	pins, err := a.activePins(ctx, r.owner.id, categoryID)
+	pins, err := a.activePins(ctx, r.owner.id)
 	if err != nil {
 		return events.APIGatewayV2HTTPResponse{}, err
 	}
@@ -379,24 +412,23 @@ func (a *App) createPin(ctx context.Context, r *request) (events.APIGatewayV2HTT
 	if in.Lat == nil || in.Lng == nil {
 		return events.APIGatewayV2HTTPResponse{}, invalidInput("緯度と経度を指定してください")
 	}
+	if in.CategoryIDs == nil {
+		return events.APIGatewayV2HTTPResponse{}, invalidInput("カテゴリを1つ以上選んでください")
+	}
 	if err := in.validate(); err != nil {
 		return events.APIGatewayV2HTTPResponse{}, err
 	}
-	c, err := a.loadCategory(ctx, r.owner.id, r.params[0])
+	cats, err := a.resolveCategories(ctx, r.owner.id, *in.CategoryIDs)
 	if err != nil {
 		return events.APIGatewayV2HTTPResponse{}, err
 	}
-
-	pins, err := a.activePins(ctx, c.OwnerID, c.CategoryID)
-	if err != nil {
+	if err := a.checkPinLimit(ctx, r.owner, cats, ""); err != nil {
 		return events.APIGatewayV2HTTPResponse{}, err
 	}
-	_, maxPins := a.limits(r.owner)
-	if len(pins) >= maxPins {
-		return events.APIGatewayV2HTTPResponse{}, pinLimitError(maxPins)
-	}
-	if err := a.renewAndSave(ctx, &c); err != nil {
-		return events.APIGatewayV2HTTPResponse{}, err
+	for i := range cats {
+		if err := a.renewAndSave(ctx, &cats[i]); err != nil {
+			return events.APIGatewayV2HTTPResponse{}, err
+		}
 	}
 
 	id, err := randomID(pinIDLen)
@@ -405,16 +437,16 @@ func (a *App) createPin(ctx context.Context, r *request) (events.APIGatewayV2HTT
 	}
 	now := a.timestamp()
 	p := Pin{
-		OwnerID:    c.OwnerID,
-		SK:         pinSK(c.CategoryID, id),
-		PinID:      id,
-		CategoryID: c.CategoryID,
-		Lat:        *in.Lat,
-		Lng:        *in.Lng,
-		Memo:       deref(in.Memo),
-		CreatedAt:  now,
-		UpdatedAt:  now,
-		ExpiresAt:  c.ExpiresAt,
+		OwnerID:     r.owner.id,
+		SK:          id,
+		PinID:       id,
+		CategoryIDs: *in.CategoryIDs,
+		Lat:         *in.Lat,
+		Lng:         *in.Lng,
+		Memo:        deref(in.Memo),
+		CreatedAt:   now,
+		UpdatedAt:   now,
+		ExpiresAt:   maxExpiry(cats),
 	}
 	if err := a.store.CreatePin(ctx, p); err != nil {
 		return events.APIGatewayV2HTTPResponse{}, err
@@ -430,12 +462,33 @@ func (a *App) updatePin(ctx context.Context, r *request) (events.APIGatewayV2HTT
 	if err := in.validate(); err != nil {
 		return events.APIGatewayV2HTTPResponse{}, err
 	}
-	c, p, err := a.loadPin(ctx, r.owner.id, r.params[0], r.params[1])
+	p, err := a.loadPin(ctx, r.owner.id, r.params[0])
 	if err != nil {
 		return events.APIGatewayV2HTTPResponse{}, err
 	}
-	if err := a.renewAndSave(ctx, &c); err != nil {
-		return events.APIGatewayV2HTTPResponse{}, err
+
+	var cats []Category
+	if in.CategoryIDs != nil {
+		// カテゴリの付け替え。新しく入れるカテゴリだけ、上限を確かめる
+		cats, err = a.resolveCategories(ctx, r.owner.id, *in.CategoryIDs)
+		if err != nil {
+			return events.APIGatewayV2HTTPResponse{}, err
+		}
+		added := slices.DeleteFunc(slices.Clone(cats), func(c Category) bool { return p.hasCategory(c.CategoryID) })
+		if err := a.checkPinLimit(ctx, r.owner, added, p.PinID); err != nil {
+			return events.APIGatewayV2HTTPResponse{}, err
+		}
+		p.CategoryIDs = *in.CategoryIDs
+	} else {
+		cats, err = a.currentCategories(ctx, r.owner.id, p.CategoryIDs)
+		if err != nil {
+			return events.APIGatewayV2HTTPResponse{}, err
+		}
+	}
+	for i := range cats {
+		if err := a.renewAndSave(ctx, &cats[i]); err != nil {
+			return events.APIGatewayV2HTTPResponse{}, err
+		}
 	}
 
 	if in.Lat != nil {
@@ -447,7 +500,9 @@ func (a *App) updatePin(ctx context.Context, r *request) (events.APIGatewayV2HTT
 	if in.Memo != nil {
 		p.Memo = *in.Memo
 	}
-	p.ExpiresAt = c.ExpiresAt
+	if len(cats) > 0 {
+		p.ExpiresAt = maxExpiry(cats)
+	}
 	p.UpdatedAt = a.timestamp()
 	if err := a.store.UpdatePin(ctx, p); err != nil {
 		if errors.Is(err, ErrNotFound) {
@@ -459,11 +514,11 @@ func (a *App) updatePin(ctx context.Context, r *request) (events.APIGatewayV2HTT
 }
 
 func (a *App) deletePin(ctx context.Context, r *request) (events.APIGatewayV2HTTPResponse, error) {
-	_, p, err := a.loadPin(ctx, r.owner.id, r.params[0], r.params[1])
+	p, err := a.loadPin(ctx, r.owner.id, r.params[0])
 	if err != nil {
 		return events.APIGatewayV2HTTPResponse{}, err
 	}
-	if err := a.store.DeletePin(ctx, p.OwnerID, p.CategoryID, p.PinID); err != nil && !errors.Is(err, ErrNotFound) {
+	if err := a.store.DeletePin(ctx, p.OwnerID, p.PinID); err != nil && !errors.Is(err, ErrNotFound) {
 		return events.APIGatewayV2HTTPResponse{}, err
 	}
 	return noContent()
@@ -495,13 +550,17 @@ func (a *App) getShared(ctx context.Context, r *request) (events.APIGatewayV2HTT
 		return events.APIGatewayV2HTTPResponse{}, err
 	}
 
-	pins, err := a.activePins(ctx, c.OwnerID, c.CategoryID)
+	// 持ち主のピンのうち、このカテゴリに入っているものだけを返す。
+	// ほかのカテゴリのピンをブラウザに送らないように、絞り込みはここ（API の中）で行う
+	pins, err := a.activePins(ctx, c.OwnerID)
 	if err != nil {
 		return events.APIGatewayV2HTTPResponse{}, err
 	}
 	out := make([]sharedPinJSON, 0, len(pins))
 	for _, p := range pins {
-		out = append(out, p.toSharedJSON())
+		if p.hasCategory(c.CategoryID) {
+			out = append(out, p.toSharedJSON())
+		}
 	}
 	return jsonResponse(http.StatusOK, map[string]any{
 		"category": sharedCategoryJSON{Name: c.Name, Color: c.Color},
@@ -533,13 +592,14 @@ func (a *App) activeCategories(ctx context.Context, ownerID string) ([]Category,
 }
 
 // activePins は期限切れを除いたピンを、作成順に返す。
-func (a *App) activePins(ctx context.Context, ownerID, categoryID string) ([]Pin, error) {
-	pins, err := a.store.ListPins(ctx, ownerID, categoryID)
+// カテゴリが1つもないピン（複数カテゴリ対応より前の古い形のデータ）も除く。
+func (a *App) activePins(ctx context.Context, ownerID string) ([]Pin, error) {
+	pins, err := a.store.ListPins(ctx, ownerID)
 	if err != nil {
 		return nil, err
 	}
 	now := a.now()
-	pins = slices.DeleteFunc(pins, func(p Pin) bool { return isExpired(p.ExpiresAt, now) })
+	pins = slices.DeleteFunc(pins, func(p Pin) bool { return isExpired(p.ExpiresAt, now) || len(p.CategoryIDs) == 0 })
 	slices.SortFunc(pins, func(x, y Pin) int {
 		return cmp.Or(strings.Compare(x.CreatedAt, y.CreatedAt), strings.Compare(x.PinID, y.PinID))
 	})
@@ -558,20 +618,91 @@ func (a *App) loadCategory(ctx context.Context, ownerID, categoryID string) (Cat
 	return c, err
 }
 
-// loadPin はカテゴリとピンを返す。どちらかがないときと期限切れのときは 404 にする。
-func (a *App) loadPin(ctx context.Context, ownerID, categoryID, pinID string) (Category, Pin, error) {
-	c, err := a.loadCategory(ctx, ownerID, categoryID)
-	if err != nil {
-		return Category{}, Pin{}, err
-	}
+// loadPin は持ち主のピンを返す。ないとき・期限切れ・古い形のデータのときは 404 にする。
+func (a *App) loadPin(ctx context.Context, ownerID, pinID string) (Pin, error) {
 	if !isID(pinID, pinIDLen) {
-		return Category{}, Pin{}, errPinNotFound
+		return Pin{}, errPinNotFound
 	}
-	p, err := a.store.GetPin(ctx, ownerID, categoryID, pinID)
-	if errors.Is(err, ErrNotFound) || (err == nil && isExpired(p.ExpiresAt, a.now())) {
-		return Category{}, Pin{}, errPinNotFound
+	p, err := a.store.GetPin(ctx, ownerID, pinID)
+	if errors.Is(err, ErrNotFound) || (err == nil && (isExpired(p.ExpiresAt, a.now()) || len(p.CategoryIDs) == 0)) {
+		return Pin{}, errPinNotFound
 	}
-	return c, p, err
+	return p, err
+}
+
+// resolveCategories は指定された ID のカテゴリを、指定の順で返す。
+// 1つでも自分のカテゴリでない（ない・期限切れ・形が違う）ものがあれば 404 にする。
+func (a *App) resolveCategories(ctx context.Context, ownerID string, ids []string) ([]Category, error) {
+	cats, err := a.activeCategories(ctx, ownerID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]Category, 0, len(ids))
+	for _, id := range ids {
+		i := slices.IndexFunc(cats, func(c Category) bool { return c.CategoryID == id })
+		if !isID(id, categoryIDLen) || i < 0 {
+			return nil, errCategoryNotFound
+		}
+		out = append(out, cats[i])
+	}
+	return out, nil
+}
+
+// currentCategories は ids のうち、今もある（期限切れでない）カテゴリだけを返す。
+func (a *App) currentCategories(ctx context.Context, ownerID string, ids []string) ([]Category, error) {
+	cats, err := a.activeCategories(ctx, ownerID)
+	if err != nil {
+		return nil, err
+	}
+	return slices.DeleteFunc(cats, func(c Category) bool { return !slices.Contains(ids, c.CategoryID) }), nil
+}
+
+// checkPinLimit は、cats のそれぞれにピンを1本増やしても上限を超えないかを確かめる。
+// excludePinID のピンは数えない（編集中のピン自身）。
+func (a *App) checkPinLimit(ctx context.Context, o owner, cats []Category, excludePinID string) error {
+	if len(cats) == 0 {
+		return nil
+	}
+	pins, err := a.activePins(ctx, o.id)
+	if err != nil {
+		return err
+	}
+	_, maxPins := a.limits(o)
+	for _, c := range cats {
+		count := 0
+		for _, p := range pins {
+			if p.PinID != excludePinID && p.hasCategory(c.CategoryID) {
+				count++
+			}
+		}
+		if count >= maxPins {
+			return pinLimitError(c.Name, maxPins)
+		}
+	}
+	return nil
+}
+
+// maxExpiry は、カテゴリの期限のうち一番遅いものを返す（ピンの期限にする）。会員のカテゴリは 0。
+func maxExpiry(cats []Category) int64 {
+	var exp int64
+	for _, c := range cats {
+		exp = max(exp, c.ExpiresAt)
+	}
+	return exp
+}
+
+// latestExpiry は、ids のうち catByID にあるカテゴリの期限の一番遅いものを返す。1つもなければ false。
+func latestExpiry(ids []string, catByID map[string]Category) (int64, bool) {
+	var cats []Category
+	for _, id := range ids {
+		if c, ok := catByID[id]; ok {
+			cats = append(cats, c)
+		}
+	}
+	if len(cats) == 0 {
+		return 0, false
+	}
+	return maxExpiry(cats), true
 }
 
 // renewExpiry はゲストのカテゴリの残りが7日を切っていれば、期限を30日後に延ばして true を返す。
@@ -596,7 +727,8 @@ func (a *App) renewAndSave(ctx context.Context, c *Category) error {
 	return a.saveCategory(ctx, *c, true)
 }
 
-// saveCategory はカテゴリを保存する。期限を延ばしたときは、ピンの期限もそろえる。
+// saveCategory はカテゴリを保存する。期限を延ばしたときは、このカテゴリに入っているピンの期限も延ばす
+// （ピンの期限は、入っているカテゴリの期限のうち一番遅いもの）。
 func (a *App) saveCategory(ctx context.Context, c Category, renewed bool) error {
 	if err := a.store.UpdateCategory(ctx, c); err != nil {
 		if errors.Is(err, ErrNotFound) {
@@ -607,12 +739,12 @@ func (a *App) saveCategory(ctx context.Context, c Category, renewed bool) error 
 	if !renewed {
 		return nil
 	}
-	pins, err := a.store.ListPins(ctx, c.OwnerID, c.CategoryID)
+	pins, err := a.store.ListPins(ctx, c.OwnerID)
 	if err != nil {
 		return err
 	}
 	for _, p := range pins {
-		if p.ExpiresAt == c.ExpiresAt {
+		if !p.hasCategory(c.CategoryID) || p.ExpiresAt >= c.ExpiresAt {
 			continue
 		}
 		p.ExpiresAt = c.ExpiresAt

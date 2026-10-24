@@ -1,6 +1,9 @@
 package main
 
-import "time"
+import (
+	"slices"
+	"time"
+)
 
 // Category は categories テーブルの1項目。
 type Category struct {
@@ -17,23 +20,23 @@ type Category struct {
 	ExpiresAt int64 `dynamodbav:"expiresAt,omitempty"`
 }
 
-// Pin は pins テーブルの1項目。
+// Pin は pins テーブルの1項目。1つのピンを複数のカテゴリに入れられる。
 type Pin struct {
-	OwnerID    string  `dynamodbav:"ownerId"`
-	SK         string  `dynamodbav:"sk"` // categoryId#pinId
-	PinID      string  `dynamodbav:"pinId"`
-	CategoryID string  `dynamodbav:"categoryId"`
-	Lat        float64 `dynamodbav:"lat"`
-	Lng        float64 `dynamodbav:"lng"`
-	Memo       string  `dynamodbav:"memo"`
-	CreatedAt  string  `dynamodbav:"createdAt"`
-	UpdatedAt  string  `dynamodbav:"updatedAt"`
-	// 所属カテゴリと同じ期限にそろえる
+	OwnerID     string   `dynamodbav:"ownerId"`
+	SK          string   `dynamodbav:"sk"` // pinId
+	PinID       string   `dynamodbav:"pinId"`
+	CategoryIDs []string `dynamodbav:"categoryIds"` // 1件以上
+	Lat         float64  `dynamodbav:"lat"`
+	Lng         float64  `dynamodbav:"lng"`
+	Memo        string   `dynamodbav:"memo"`
+	CreatedAt   string   `dynamodbav:"createdAt"`
+	UpdatedAt   string   `dynamodbav:"updatedAt"`
+	// 入っているカテゴリの期限のうち、一番遅いものにそろえる
 	ExpiresAt int64 `dynamodbav:"expiresAt,omitempty"`
 }
 
-func pinSK(categoryID, pinID string) string {
-	return categoryID + "#" + pinID
+func (p Pin) hasCategory(categoryID string) bool {
+	return slices.Contains(p.CategoryIDs, categoryID)
 }
 
 func isExpired(expiresAt int64, now time.Time) bool {
@@ -54,17 +57,17 @@ type categoryJSON struct {
 }
 
 type pinJSON struct {
-	PinID      string  `json:"pinId"`
-	CategoryID string  `json:"categoryId"`
-	Lat        float64 `json:"lat"`
-	Lng        float64 `json:"lng"`
-	Memo       string  `json:"memo"`
-	CreatedAt  string  `json:"createdAt"`
-	UpdatedAt  string  `json:"updatedAt"`
-	ExpiresAt  int64   `json:"expiresAt,omitempty"`
+	PinID       string   `json:"pinId"`
+	CategoryIDs []string `json:"categoryIds"`
+	Lat         float64  `json:"lat"`
+	Lng         float64  `json:"lng"`
+	Memo        string   `json:"memo"`
+	CreatedAt   string   `json:"createdAt"`
+	UpdatedAt   string   `json:"updatedAt"`
+	ExpiresAt   int64    `json:"expiresAt,omitempty"`
 }
 
-// 共有ページ用。持ち主に関わる情報（ownerId、期限など）は含めない。
+// 共有ページ用。持ち主に関わる情報（ownerId、期限、ほかのカテゴリ）は含めない。
 type sharedCategoryJSON struct {
 	Name  string `json:"name"`
 	Color string `json:"color"`
@@ -94,14 +97,14 @@ func (c Category) toJSON() categoryJSON {
 
 func (p Pin) toJSON() pinJSON {
 	return pinJSON{
-		PinID:      p.PinID,
-		CategoryID: p.CategoryID,
-		Lat:        p.Lat,
-		Lng:        p.Lng,
-		Memo:       p.Memo,
-		CreatedAt:  p.CreatedAt,
-		UpdatedAt:  p.UpdatedAt,
-		ExpiresAt:  p.ExpiresAt,
+		PinID:       p.PinID,
+		CategoryIDs: p.CategoryIDs,
+		Lat:         p.Lat,
+		Lng:         p.Lng,
+		Memo:        p.Memo,
+		CreatedAt:   p.CreatedAt,
+		UpdatedAt:   p.UpdatedAt,
+		ExpiresAt:   p.ExpiresAt,
 	}
 }
 

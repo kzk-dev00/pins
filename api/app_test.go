@@ -139,10 +139,12 @@ func (e *testEnv) createCategory(as auth, body string) categoryJSON {
 	return c
 }
 
-func (e *testEnv) createPin(as auth, categoryID, body string) pinJSON {
+// createPin はピンを作る。categoryIDs に入れるカテゴリを指定する
+func (e *testEnv) createPin(as auth, lat, lng float64, memo string, categoryIDs ...string) pinJSON {
 	e.t.Helper()
+	body, _ := json.Marshal(map[string]any{"lat": lat, "lng": lng, "memo": memo, "categoryIds": categoryIDs})
 	var p pinJSON
-	e.do(as, http.MethodPost, "/categories/"+categoryID+"/pins", body).expect(http.StatusCreated).decode(&p)
+	e.do(as, http.MethodPost, "/pins", string(body)).expect(http.StatusCreated).decode(&p)
 	return p
 }
 
@@ -155,13 +157,34 @@ func (e *testEnv) listCategories(as auth) []categoryJSON {
 	return out.Categories
 }
 
-func (e *testEnv) listPins(as auth, query string) []pinJSON {
+func (e *testEnv) listPins(as auth) []pinJSON {
 	e.t.Helper()
 	var out struct {
 		Pins []pinJSON `json:"pins"`
 	}
-	e.do(as, http.MethodGet, "/pins"+query, "").expect(http.StatusOK).decode(&out)
+	e.do(as, http.MethodGet, "/pins", "").expect(http.StatusOK).decode(&out)
 	return out.Pins
+}
+
+func (e *testEnv) share(as auth, categoryID string) string {
+	e.t.Helper()
+	var out struct {
+		ViewKey string `json:"viewKey"`
+	}
+	e.do(as, http.MethodPost, "/categories/"+categoryID+"/share", "").expect(http.StatusOK).decode(&out)
+	if !isID(out.ViewKey, viewKeyLen) {
+		e.t.Fatalf("viewKey = %q", out.ViewKey)
+	}
+	return out.ViewKey
+}
+
+func pinByID(pins []pinJSON, pinID string) (pinJSON, bool) {
+	for _, p := range pins {
+		if p.PinID == pinID {
+			return p, true
+		}
+	}
+	return pinJSON{}, false
 }
 
 func TestHealth(t *testing.T) {
@@ -173,13 +196,16 @@ func TestRouting(t *testing.T) {
 	e := newTestEnv(t)
 	e.do(guest(tokenA), http.MethodGet, "/unknown", "").expectError(http.StatusNotFound, "not_found")
 	e.do(guest(tokenA), http.MethodPut, "/categories", "").expectError(http.StatusMethodNotAllowed, "method_not_allowed")
+	// 古いパスはもう使えない
+	e.do(anonymous, http.MethodGet, "/s/"+strings.Repeat("a", viewKeyLen), "").expectError(http.StatusNotFound, "not_found")
+	e.do(guest(tokenA), http.MethodPost, "/categories/ABCDEFGHIJ/pins", `{}`).expectError(http.StatusNotFound, "not_found")
 }
 
 func TestPreflight(t *testing.T) {
 	e := newTestEnv(t)
 	// ブラウザのプリフライトにはゲストトークンが付かないので、トークンなしでも成功する
 	e.do(anonymous, http.MethodOptions, "/categories", "").expect(http.StatusNoContent)
-	e.do(anonymous, http.MethodOptions, "/categories/ABCDEFGHIJ/pins", "").expect(http.StatusNoContent)
+	e.do(anonymous, http.MethodOptions, "/pins/ABCDEFGHIJKL", "").expect(http.StatusNoContent)
 }
 
 func TestGuestToken(t *testing.T) {
@@ -298,20 +324,22 @@ func TestCategoryLimitIgnoresExpired(t *testing.T) {
 func TestOwnersAreIsolated(t *testing.T) {
 	e := newTestEnv(t)
 	c := e.createCategory(guest(tokenA), `{"name":"A のカテゴリ"}`)
-	p := e.createPin(guest(tokenA), c.CategoryID, `{"lat":35,"lng":139}`)
+	p := e.createPin(guest(tokenA), 35, 139, "", c.CategoryID)
 
 	b := guest(tokenB)
 	if cats := e.listCategories(b); len(cats) != 0 {
 		t.Fatalf("B に A のカテゴリが見えている: %+v", cats)
 	}
-	if pins := e.listPins(b, ""); len(pins) != 0 {
+	if pins := e.listPins(b); len(pins) != 0 {
 		t.Fatalf("B に A のピンが見えている: %+v", pins)
 	}
 	e.do(b, http.MethodPatch, "/categories/"+c.CategoryID, `{"name":"x"}`).expectError(http.StatusNotFound, "category_not_found")
 	e.do(b, http.MethodDelete, "/categories/"+c.CategoryID, "").expectError(http.StatusNotFound, "category_not_found")
 	e.do(b, http.MethodPost, "/categories/"+c.CategoryID+"/share", "").expectError(http.StatusNotFound, "category_not_found")
-	e.do(b, http.MethodPost, "/categories/"+c.CategoryID+"/pins", `{"lat":1,"lng":1}`).expectError(http.StatusNotFound, "category_not_found")
-	e.do(b, http.MethodDelete, "/categories/"+c.CategoryID+"/pins/"+p.PinID, "").expectError(http.StatusNotFound, "category_not_found")
+	// A のカテゴリに B のピンは入れられない
+	e.do(b, http.MethodPost, "/pins", `{"lat":1,"lng":1,"categoryIds":["`+c.CategoryID+`"]}`).expectError(http.StatusNotFound, "category_not_found")
+	e.do(b, http.MethodPatch, "/pins/"+p.PinID, `{"memo":"x"}`).expectError(http.StatusNotFound, "pin_not_found")
+	e.do(b, http.MethodDelete, "/pins/"+p.PinID, "").expectError(http.StatusNotFound, "pin_not_found")
 }
 
 func TestMemberHasNoExpiry(t *testing.T) {
@@ -321,7 +349,7 @@ func TestMemberHasNoExpiry(t *testing.T) {
 	if c.ExpiresAt != 0 {
 		t.Fatalf("会員のカテゴリに期限が入っている: %d", c.ExpiresAt)
 	}
-	p := e.createPin(as, c.CategoryID, `{"lat":35,"lng":139}`)
+	p := e.createPin(as, 35, 139, "", c.CategoryID)
 	if p.ExpiresAt != 0 {
 		t.Fatalf("会員のピンに期限が入っている: %d", p.ExpiresAt)
 	}
@@ -333,95 +361,141 @@ func TestMemberHasNoExpiry(t *testing.T) {
 	if cats := e.listCategories(as); len(cats) != 1 {
 		t.Fatal("会員のカテゴリが期限切れ扱いになっている")
 	}
+	if pins := e.listPins(as); len(pins) != 1 {
+		t.Fatal("会員のピンが期限切れ扱いになっている")
+	}
 }
 
 func TestPinLifecycle(t *testing.T) {
 	e := newTestEnv(t)
 	as := guest(tokenA)
-	c := e.createCategory(as, `{"name":"厚木ランチ"}`)
-	other := e.createCategory(as, `{"name":"旅行候補"}`)
+	lunch := e.createCategory(as, `{"name":"厚木ランチ"}`)
+	trip := e.createCategory(as, `{"name":"旅行候補"}`)
 
-	p := e.createPin(as, c.CategoryID, `{"lat":35.4430,"lng":139.3625,"memo":"駅前のそば屋"}`)
-	if !isID(p.PinID, pinIDLen) || p.CategoryID != c.CategoryID || p.Memo != "駅前のそば屋" {
+	// 1つのピンを2つのカテゴリに入れる
+	p := e.createPin(as, 35.4430, 139.3625, "駅前のそば屋", lunch.CategoryID, trip.CategoryID)
+	if !isID(p.PinID, pinIDLen) || p.Memo != "駅前のそば屋" {
 		t.Fatalf("作成結果が違う: %+v", p)
 	}
-	if p.ExpiresAt != c.ExpiresAt {
-		t.Errorf("ピンの期限 %d がカテゴリの期限 %d とそろっていない", p.ExpiresAt, c.ExpiresAt)
+	if len(p.CategoryIDs) != 2 || p.CategoryIDs[0] != lunch.CategoryID || p.CategoryIDs[1] != trip.CategoryID {
+		t.Fatalf("categoryIds = %v", p.CategoryIDs)
 	}
-	e.createPin(as, other.CategoryID, `{"lat":34,"lng":135}`)
+	e.createPin(as, 34, 135, "", trip.CategoryID)
 
-	if pins := e.listPins(as, ""); len(pins) != 2 {
+	if pins := e.listPins(as); len(pins) != 2 {
 		t.Fatalf("全部のピン = %d 件, want 2", len(pins))
 	}
-	if pins := e.listPins(as, "?categoryId="+c.CategoryID); len(pins) != 1 || pins[0].PinID != p.PinID {
-		t.Fatalf("カテゴリで絞り込めていない: %+v", pins)
-	}
-	e.do(as, http.MethodGet, "/pins?categoryId=ABCDEFGHIJ", "").expectError(http.StatusNotFound, "category_not_found")
 
 	var updated pinJSON
-	path := "/categories/" + c.CategoryID + "/pins/" + p.PinID
+	path := "/pins/" + p.PinID
 	e.do(as, http.MethodPatch, path, `{"memo":"閉店していた"}`).expect(http.StatusOK).decode(&updated)
-	if updated.Memo != "閉店していた" || updated.Lat != p.Lat || updated.Lng != p.Lng {
-		t.Fatalf("編集結果が違う: %+v", updated)
+	if updated.Memo != "閉店していた" || updated.Lat != p.Lat || len(updated.CategoryIDs) != 2 {
+		t.Fatalf("メモだけ変えたはずが違う: %+v", updated)
 	}
-	e.do(as, http.MethodPatch, path, `{"memo":""}`).expect(http.StatusOK).decode(&updated)
-	if updated.Memo != "" {
-		t.Fatalf("メモを空にできていない: %q", updated.Memo)
+
+	// カテゴリの付け替え
+	e.do(as, http.MethodPatch, path, `{"categoryIds":["`+trip.CategoryID+`"]}`).expect(http.StatusOK).decode(&updated)
+	if len(updated.CategoryIDs) != 1 || updated.CategoryIDs[0] != trip.CategoryID {
+		t.Fatalf("カテゴリを付け替えられていない: %v", updated.CategoryIDs)
+	}
+
+	e.do(as, http.MethodPatch, path, `{"lat":36,"lng":140}`).expect(http.StatusOK).decode(&updated)
+	if updated.Lat != 36 || updated.Lng != 140 {
+		t.Fatalf("位置が変わっていない: %+v", updated)
 	}
 
 	e.do(as, http.MethodDelete, path, "").expect(http.StatusNoContent)
 	e.do(as, http.MethodDelete, path, "").expectError(http.StatusNotFound, "pin_not_found")
 	e.do(as, http.MethodPatch, path, `{"memo":"x"}`).expectError(http.StatusNotFound, "pin_not_found")
-	e.do(as, http.MethodPost, "/categories/ABCDEFGHIJ/pins", `{"lat":1,"lng":1}`).expectError(http.StatusNotFound, "category_not_found")
 }
 
 func TestPinValidation(t *testing.T) {
 	cases := []struct {
-		name string
-		body string
-		code string
+		name   string
+		body   func(categoryID string) string
+		status int
+		code   string
 	}{
-		{"緯度なし", `{"lng":139}`, "invalid_input"},
-		{"経度なし", `{"lat":35}`, "invalid_input"},
-		{"緯度が範囲外", `{"lat":90.1,"lng":139}`, "invalid_input"},
-		{"経度が範囲外", `{"lat":35,"lng":-180.1}`, "invalid_input"},
-		{"メモが201文字", `{"lat":35,"lng":139,"memo":"` + strings.Repeat("あ", 201) + `"}`, "invalid_input"},
-		{"緯度が文字列", `{"lat":"35","lng":139}`, "invalid_json"},
+		{"緯度なし", func(c string) string { return `{"lng":139,"categoryIds":["` + c + `"]}` }, http.StatusBadRequest, "invalid_input"},
+		{"経度なし", func(c string) string { return `{"lat":35,"categoryIds":["` + c + `"]}` }, http.StatusBadRequest, "invalid_input"},
+		{"緯度が範囲外", func(c string) string { return `{"lat":90.1,"lng":139,"categoryIds":["` + c + `"]}` }, http.StatusBadRequest, "invalid_input"},
+		{"経度が範囲外", func(c string) string { return `{"lat":35,"lng":-180.1,"categoryIds":["` + c + `"]}` }, http.StatusBadRequest, "invalid_input"},
+		{"メモが201文字", func(c string) string {
+			return `{"lat":35,"lng":139,"memo":"` + strings.Repeat("あ", 201) + `","categoryIds":["` + c + `"]}`
+		}, http.StatusBadRequest, "invalid_input"},
+		{"緯度が文字列", func(c string) string { return `{"lat":"35","lng":139,"categoryIds":["` + c + `"]}` }, http.StatusBadRequest, "invalid_json"},
+		{"カテゴリなし", func(string) string { return `{"lat":35,"lng":139}` }, http.StatusBadRequest, "invalid_input"},
+		{"カテゴリが空", func(string) string { return `{"lat":35,"lng":139,"categoryIds":[]}` }, http.StatusBadRequest, "invalid_input"},
+		{"カテゴリが重複", func(c string) string { return `{"lat":35,"lng":139,"categoryIds":["` + c + `","` + c + `"]}` }, http.StatusBadRequest, "invalid_input"},
+		{"ないカテゴリ", func(string) string { return `{"lat":35,"lng":139,"categoryIds":["ABCDEFGHIJ"]}` }, http.StatusNotFound, "category_not_found"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			e := newTestEnv(t)
 			c := e.createCategory(guest(tokenA), `{"name":"a"}`)
-			e.do(guest(tokenA), http.MethodPost, "/categories/"+c.CategoryID+"/pins", tc.body).expectError(http.StatusBadRequest, tc.code)
+			e.do(guest(tokenA), http.MethodPost, "/pins", tc.body(c.CategoryID)).expectError(tc.status, tc.code)
 		})
 	}
 
 	t.Run("境界値はOK", func(t *testing.T) {
 		e := newTestEnv(t)
 		c := e.createCategory(guest(tokenA), `{"name":"a"}`)
-		e.createPin(guest(tokenA), c.CategoryID, `{"lat":-90,"lng":180,"memo":"`+strings.Repeat("あ", 200)+`"}`)
+		e.createPin(guest(tokenA), -90, 180, strings.Repeat("あ", 200), c.CategoryID)
+	})
+
+	t.Run("編集でカテゴリを空にはできない", func(t *testing.T) {
+		e := newTestEnv(t)
+		c := e.createCategory(guest(tokenA), `{"name":"a"}`)
+		p := e.createPin(guest(tokenA), 35, 139, "", c.CategoryID)
+		e.do(guest(tokenA), http.MethodPatch, "/pins/"+p.PinID, `{"categoryIds":[]}`).expectError(http.StatusBadRequest, "invalid_input")
 	})
 }
 
 func TestPinLimitPerCategory(t *testing.T) {
 	e := newTestEnv(t)
 	as := guest(tokenA)
-	c := e.createCategory(as, `{"name":"a"}`)
+	a := e.createCategory(as, `{"name":"a"}`)
+	b := e.createCategory(as, `{"name":"b"}`)
+	var pins []pinJSON
 	for range testConfig.GuestMaxPinsPerCategory {
-		e.createPin(as, c.CategoryID, `{"lat":35,"lng":139}`)
+		pins = append(pins, e.createPin(as, 35, 139, "", a.CategoryID))
 	}
-	e.do(as, http.MethodPost, "/categories/"+c.CategoryID+"/pins", `{"lat":35,"lng":139}`).expectError(http.StatusConflict, "pin_limit")
+	e.do(as, http.MethodPost, "/pins", `{"lat":35,"lng":139,"categoryIds":["`+a.CategoryID+`"]}`).expectError(http.StatusConflict, "pin_limit")
+	// どれか1つのカテゴリでも上限なら作れない
+	e.do(as, http.MethodPost, "/pins", `{"lat":35,"lng":139,"categoryIds":["`+b.CategoryID+`","`+a.CategoryID+`"]}`).expectError(http.StatusConflict, "pin_limit")
 
 	// 上限は1カテゴリあたりなので、別のカテゴリには追加できる
-	other := e.createCategory(as, `{"name":"b"}`)
-	e.createPin(as, other.CategoryID, `{"lat":35,"lng":139}`)
+	other := e.createPin(as, 35, 139, "", b.CategoryID)
+	// 満員のカテゴリへ付け替えることはできない
+	e.do(as, http.MethodPatch, "/pins/"+other.PinID, `{"categoryIds":["`+a.CategoryID+`"]}`).expectError(http.StatusConflict, "pin_limit")
+	// すでに入っているカテゴリは数え直さないので、満員の a に入っているピンに b を足すのは OK
+	e.do(as, http.MethodPatch, "/pins/"+pins[0].PinID, `{"categoryIds":["`+a.CategoryID+`","`+b.CategoryID+`"]}`).expect(http.StatusOK)
+}
+
+func TestPinExpiryFollowsLatestCategory(t *testing.T) {
+	e := newTestEnv(t)
+	as := guest(tokenA)
+	early := e.createCategory(as, `{"name":"先に作った"}`)
+	e.advance(10 * day)
+	late := e.createCategory(as, `{"name":"あとで作った"}`)
+
+	p := e.createPin(as, 35, 139, "", early.CategoryID, late.CategoryID)
+	if p.ExpiresAt != late.ExpiresAt {
+		t.Fatalf("ピンの期限 %d が、一番遅いカテゴリの期限 %d になっていない", p.ExpiresAt, late.ExpiresAt)
+	}
+
+	// 先に作ったカテゴリが期限切れになっても、あとのカテゴリに入っているのでピンは残る
+	e.advance(25 * day)
+	if pins := e.listPins(as); len(pins) != 1 {
+		t.Fatalf("ピンが消えている: %+v", pins)
+	}
 }
 
 func TestGuestExpiryIsRenewedWhenNearlyExpired(t *testing.T) {
 	e := newTestEnv(t)
 	as := guest(tokenA)
 	c := e.createCategory(as, `{"name":"a"}`)
-	e.createPin(as, c.CategoryID, `{"lat":35,"lng":139}`)
+	e.createPin(as, 35, 139, "", c.CategoryID)
 
 	// 残り10日：まだ延ばさない
 	e.advance(20 * day)
@@ -435,7 +509,7 @@ func TestGuestExpiryIsRenewedWhenNearlyExpired(t *testing.T) {
 	if cats := e.listCategories(as); cats[0].ExpiresAt != want {
 		t.Fatalf("期限 = %d, want %d", cats[0].ExpiresAt, want)
 	}
-	if pins := e.listPins(as, ""); pins[0].ExpiresAt != want {
+	if pins := e.listPins(as); pins[0].ExpiresAt != want {
 		t.Fatalf("ピンの期限がカテゴリとそろっていない: %d, want %d", pins[0].ExpiresAt, want)
 	}
 }
@@ -444,27 +518,24 @@ func TestGuestExpiryIsRenewedByPinAndShare(t *testing.T) {
 	e := newTestEnv(t)
 	as := guest(tokenA)
 	c := e.createCategory(as, `{"name":"a"}`)
-	var share struct {
-		ViewKey string `json:"viewKey"`
-	}
-	e.do(as, http.MethodPost, "/categories/"+c.CategoryID+"/share", "").expect(http.StatusOK).decode(&share)
+	viewKey := e.share(as, c.CategoryID)
 
 	// ピンの追加で延びる
 	e.advance(25 * day)
-	p := e.createPin(as, c.CategoryID, `{"lat":35,"lng":139}`)
+	p := e.createPin(as, 35, 139, "", c.CategoryID)
 	if want := e.now.Add(30 * day).Unix(); p.ExpiresAt != want {
 		t.Fatalf("ピン追加で期限が延びていない: %d, want %d", p.ExpiresAt, want)
 	}
 
 	// 共有URLを開かれて延びる
 	e.advance(25 * day)
-	e.do(anonymous, http.MethodGet, "/s/"+share.ViewKey, "").expect(http.StatusOK)
+	e.do(anonymous, http.MethodGet, "/share/"+viewKey, "").expect(http.StatusOK)
 	want := e.now.Add(30 * day).Unix()
 	got, _ := e.store.GetCategory(context.Background(), guestOwnerID(tokenA), c.CategoryID)
 	if got.ExpiresAt != want {
 		t.Fatalf("共有URLで期限が延びていない: %d, want %d", got.ExpiresAt, want)
 	}
-	if pins := e.listPins(as, ""); pins[0].ExpiresAt != want {
+	if pins := e.listPins(as); pins[0].ExpiresAt != want {
 		t.Fatalf("ピンの期限がそろっていない: %d, want %d", pins[0].ExpiresAt, want)
 	}
 }
@@ -473,100 +544,117 @@ func TestExpiredDataIsHidden(t *testing.T) {
 	e := newTestEnv(t)
 	as := guest(tokenA)
 	c := e.createCategory(as, `{"name":"a"}`)
-	p := e.createPin(as, c.CategoryID, `{"lat":35,"lng":139}`)
+	p := e.createPin(as, 35, 139, "", c.CategoryID)
 
 	e.advance(30*day + time.Second)
 	if cats := e.listCategories(as); len(cats) != 0 {
 		t.Fatalf("期限切れのカテゴリが返っている: %+v", cats)
 	}
-	if pins := e.listPins(as, ""); len(pins) != 0 {
+	if pins := e.listPins(as); len(pins) != 0 {
 		t.Fatalf("期限切れのピンが返っている: %+v", pins)
 	}
 	e.do(as, http.MethodPatch, "/categories/"+c.CategoryID, `{"name":"x"}`).expectError(http.StatusNotFound, "category_not_found")
-	e.do(as, http.MethodPatch, "/categories/"+c.CategoryID+"/pins/"+p.PinID, `{"memo":"x"}`).expectError(http.StatusNotFound, "category_not_found")
+	e.do(as, http.MethodPatch, "/pins/"+p.PinID, `{"memo":"x"}`).expectError(http.StatusNotFound, "pin_not_found")
+	e.do(as, http.MethodPost, "/pins", `{"lat":1,"lng":1,"categoryIds":["`+c.CategoryID+`"]}`).expectError(http.StatusNotFound, "category_not_found")
 }
 
 func TestShareLifecycle(t *testing.T) {
 	e := newTestEnv(t)
 	as := guest(tokenA)
-	c := e.createCategory(as, `{"name":"厚木ランチ","color":"#00AA00"}`)
-	e.createPin(as, c.CategoryID, `{"lat":35.44,"lng":139.36,"memo":"そば"}`)
+	lunch := e.createCategory(as, `{"name":"厚木ランチ","color":"#00AA00"}`)
+	secret := e.createCategory(as, `{"name":"自宅メモ"}`)
+	onlyLunch := e.createPin(as, 35.44, 139.36, "そば", lunch.CategoryID)
+	both := e.createPin(as, 35.45, 139.37, "両方", lunch.CategoryID, secret.CategoryID)
+	e.createPin(as, 35.46, 139.38, "見せたくない", secret.CategoryID)
 
-	share := func() string {
-		t.Helper()
-		var out struct {
-			ViewKey string `json:"viewKey"`
+	key1 := e.share(as, lunch.CategoryID)
+	resp := e.do(anonymous, http.MethodGet, "/share/"+key1, "").expect(http.StatusOK)
+	for _, leak := range []string{"ownerId", "g_", "expiresAt", "categoryIds", secret.CategoryID, "自宅メモ", "見せたくない"} {
+		if strings.Contains(resp.body, leak) {
+			t.Fatalf("共有ページに %q が含まれている: %s", leak, resp.body)
 		}
-		e.do(as, http.MethodPost, "/categories/"+c.CategoryID+"/share", "").expect(http.StatusOK).decode(&out)
-		if !isID(out.ViewKey, viewKeyLen) {
-			t.Fatalf("viewKey = %q", out.ViewKey)
-		}
-		return out.ViewKey
-	}
-
-	key1 := share()
-	resp := e.do(anonymous, http.MethodGet, "/s/"+key1, "").expect(http.StatusOK)
-	if strings.Contains(resp.body, "ownerId") || strings.Contains(resp.body, "g_") {
-		t.Fatalf("共有ページに持ち主の情報が含まれている: %s", resp.body)
 	}
 	var shared struct {
 		Category sharedCategoryJSON `json:"category"`
 		Pins     []sharedPinJSON    `json:"pins"`
 	}
 	resp.decode(&shared)
-	if shared.Category.Name != "厚木ランチ" || shared.Category.Color != "#00AA00" || len(shared.Pins) != 1 || shared.Pins[0].Memo != "そば" {
+	if shared.Category.Name != "厚木ランチ" || shared.Category.Color != "#00AA00" || len(shared.Pins) != 2 {
 		t.Fatalf("共有ページの中身が違う: %+v", shared)
 	}
-	if cats := e.listCategories(as); cats[0].ViewKey != key1 {
-		t.Fatalf("カテゴリ一覧に viewKey が出ていない: %+v", cats[0])
+	got := map[string]bool{shared.Pins[0].PinID: true, shared.Pins[1].PinID: true}
+	if !got[onlyLunch.PinID] || !got[both.PinID] {
+		t.Fatalf("共有したカテゴリのピンだけになっていない: %+v", shared.Pins)
 	}
 
 	// 作り直すと古いキーは使えなくなる
-	key2 := share()
+	key2 := e.share(as, lunch.CategoryID)
 	if key2 == key1 {
 		t.Fatal("viewKey が作り直されていない")
 	}
-	e.do(anonymous, http.MethodGet, "/s/"+key1, "").expectError(http.StatusNotFound, "shared_not_found")
-	e.do(anonymous, http.MethodGet, "/s/"+key2, "").expect(http.StatusOK)
+	e.do(anonymous, http.MethodGet, "/share/"+key1, "").expectError(http.StatusNotFound, "shared_not_found")
+	e.do(anonymous, http.MethodGet, "/share/"+key2, "").expect(http.StatusOK)
 
 	// 共有をやめる
-	e.do(as, http.MethodDelete, "/categories/"+c.CategoryID+"/share", "").expect(http.StatusNoContent)
-	e.do(as, http.MethodDelete, "/categories/"+c.CategoryID+"/share", "").expect(http.StatusNoContent)
-	e.do(anonymous, http.MethodGet, "/s/"+key2, "").expectError(http.StatusNotFound, "shared_not_found")
-	if cats := e.listCategories(as); cats[0].ViewKey != "" {
-		t.Fatalf("共有をやめても viewKey が残っている: %+v", cats[0])
-	}
+	e.do(as, http.MethodDelete, "/categories/"+lunch.CategoryID+"/share", "").expect(http.StatusNoContent)
+	e.do(as, http.MethodDelete, "/categories/"+lunch.CategoryID+"/share", "").expect(http.StatusNoContent)
+	e.do(anonymous, http.MethodGet, "/share/"+key2, "").expectError(http.StatusNotFound, "shared_not_found")
 
-	e.do(anonymous, http.MethodGet, "/s/short", "").expectError(http.StatusNotFound, "shared_not_found")
+	e.do(anonymous, http.MethodGet, "/share/short", "").expectError(http.StatusNotFound, "shared_not_found")
 }
 
 func TestSharedPageHidesExpiredCategory(t *testing.T) {
 	e := newTestEnv(t)
 	as := guest(tokenA)
 	c := e.createCategory(as, `{"name":"a"}`)
-	var out struct {
-		ViewKey string `json:"viewKey"`
-	}
-	e.do(as, http.MethodPost, "/categories/"+c.CategoryID+"/share", "").expect(http.StatusOK).decode(&out)
+	viewKey := e.share(as, c.CategoryID)
 
 	e.advance(30*day + time.Second)
-	e.do(anonymous, http.MethodGet, "/s/"+out.ViewKey, "").expectError(http.StatusNotFound, "shared_not_found")
+	e.do(anonymous, http.MethodGet, "/share/"+viewKey, "").expectError(http.StatusNotFound, "shared_not_found")
 }
 
-func TestDeleteCategoryDeletesPins(t *testing.T) {
+func TestDeleteCategory(t *testing.T) {
 	e := newTestEnv(t)
 	as := guest(tokenA)
-	c := e.createCategory(as, `{"name":"a"}`)
-	keep := e.createCategory(as, `{"name":"b"}`)
-	e.createPin(as, c.CategoryID, `{"lat":35,"lng":139}`)
-	e.createPin(as, c.CategoryID, `{"lat":36,"lng":140}`)
-	e.createPin(as, keep.CategoryID, `{"lat":37,"lng":141}`)
+	a := e.createCategory(as, `{"name":"a"}`)
+	e.advance(5 * day)
+	b := e.createCategory(as, `{"name":"b"}`)
+	onlyA := e.createPin(as, 35, 139, "", a.CategoryID)
+	both := e.createPin(as, 36, 140, "", a.CategoryID, b.CategoryID)
+	onlyB := e.createPin(as, 37, 141, "", b.CategoryID)
 
-	e.do(as, http.MethodDelete, "/categories/"+c.CategoryID, "").expect(http.StatusNoContent)
+	e.do(as, http.MethodDelete, "/categories/"+b.CategoryID, "").expect(http.StatusNoContent)
 
-	pins, _ := e.store.ListPins(context.Background(), guestOwnerID(tokenA), "")
-	if len(pins) != 1 || pins[0].CategoryID != keep.CategoryID {
-		t.Fatalf("削除したカテゴリのピンが残っている、または別のカテゴリのピンが消えた: %+v", pins)
+	pins := e.listPins(as)
+	if _, ok := pinByID(pins, onlyB.PinID); ok {
+		t.Fatal("どのカテゴリにも入らなくなったピンが残っている")
+	}
+	if _, ok := pinByID(pins, onlyA.PinID); !ok {
+		t.Fatal("削除したカテゴリに入っていないピンが消えた")
+	}
+	got, ok := pinByID(pins, both.PinID)
+	if !ok {
+		t.Fatal("ほかのカテゴリにも入っているピンが消えた")
+	}
+	if len(got.CategoryIDs) != 1 || got.CategoryIDs[0] != a.CategoryID {
+		t.Fatalf("削除したカテゴリが外れていない: %v", got.CategoryIDs)
+	}
+	// 残ったカテゴリ a の期限に合わせて計算し直される
+	if got.ExpiresAt != a.ExpiresAt {
+		t.Fatalf("ピンの期限 %d が、残ったカテゴリの期限 %d になっていない", got.ExpiresAt, a.ExpiresAt)
+	}
+}
+
+func TestOldFormatPinsAreHidden(t *testing.T) {
+	e := newTestEnv(t)
+	as := guest(tokenA)
+	// 複数カテゴリ対応より前の形（categoryIds がない）のピン
+	old := Pin{OwnerID: guestOwnerID(tokenA), SK: "ABCDEFGHIJ#ABCDEFGHIJKL", PinID: "ABCDEFGHIJKL"}
+	if err := e.store.CreatePin(context.Background(), old); err != nil {
+		t.Fatal(err)
+	}
+	if pins := e.listPins(as); len(pins) != 0 {
+		t.Fatalf("古い形のピンが返っている: %+v", pins)
 	}
 }
 

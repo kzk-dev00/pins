@@ -14,7 +14,7 @@ export type Category = {
 
 export type Pin = {
   pinId: string;
-  categoryId: string;
+  categoryIds: string[]; // 1件以上。1つのピンを複数のカテゴリに入れられる
   lat: number;
   lng: number;
   memo: string;
@@ -88,24 +88,24 @@ export function deleteCategory(categoryId: string): Promise<void> {
   return request("DELETE", `/categories/${categoryId}`);
 }
 
-export async function listPins(categoryId?: string): Promise<Pin[]> {
-  const query = categoryId ? `?categoryId=${encodeURIComponent(categoryId)}` : "";
-  const data = await request<{ pins: Pin[] }>("GET", `/pins${query}`);
+// 自分のピンを全部返す。カテゴリでの絞り込みは画面側で行う
+export async function listPins(): Promise<Pin[]> {
+  const data = await request<{ pins: Pin[] }>("GET", "/pins");
   return data.pins;
 }
 
-export function createPin(categoryId: string, input: { lat: number; lng: number; memo?: string }): Promise<Pin> {
-  return request("POST", `/categories/${categoryId}/pins`, input);
+export function createPin(input: { lat: number; lng: number; memo?: string; categoryIds: string[] }): Promise<Pin> {
+  return request("POST", "/pins", input);
 }
 
+// categoryIds を渡すと、カテゴリを付け替える
 export function updatePin(
-  categoryId: string,
   pinId: string,
-  input: { lat?: number; lng?: number; memo?: string },
+  input: { lat?: number; lng?: number; memo?: string; categoryIds?: string[] },
 ): Promise<Pin> {
-  return request("PATCH", `/categories/${categoryId}/pins/${pinId}`, input);
+  return request("PATCH", `/pins/${pinId}`, input);
 }
 
-export function deletePin(categoryId: string, pinId: string): Promise<void> {
-  return request("DELETE", `/categories/${categoryId}/pins/${pinId}`);
+export function deletePin(pinId: string): Promise<void> {
+  return request("DELETE", `/pins/${pinId}`);
 }

@@ -35,12 +35,20 @@ func TestCategoryItemShape(t *testing.T) {
 }
 
 func TestPinItemShape(t *testing.T) {
-	item, err := attributevalue.MarshalMap(Pin{OwnerID: "g_x", SK: pinSK("cat", "pin"), PinID: "pin", CategoryID: "cat", ExpiresAt: 1790000000})
+	item, err := attributevalue.MarshalMap(Pin{OwnerID: "g_x", SK: "pin", PinID: "pin", CategoryIDs: []string{"cat1", "cat2"}, ExpiresAt: 1790000000})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if sk, ok := item["sk"].(*types.AttributeValueMemberS); !ok || sk.Value != "cat#pin" {
-		t.Errorf("sk が categoryId#pinId になっていない: %#v", item["sk"])
+	if sk, ok := item["sk"].(*types.AttributeValueMemberS); !ok || sk.Value != "pin" {
+		t.Errorf("sk が pinId になっていない: %#v", item["sk"])
+	}
+	// categoryIds は文字列の List で保存する
+	list, ok := item["categoryIds"].(*types.AttributeValueMemberL)
+	if !ok || len(list.Value) != 2 {
+		t.Fatalf("categoryIds が List になっていない: %#v", item["categoryIds"])
+	}
+	if s, ok := list.Value[1].(*types.AttributeValueMemberS); !ok || s.Value != "cat2" {
+		t.Errorf("categoryIds の中身が文字列になっていない: %#v", list.Value[1])
 	}
 	if _, ok := item["expiresAt"].(*types.AttributeValueMemberN); !ok {
 		t.Error("expiresAt が Number 型になっていない")

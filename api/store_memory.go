@@ -92,16 +92,13 @@ func (s *MemoryStore) FindCategoryByViewKey(_ context.Context, viewKey string) (
 	return Category{}, ErrNotFound
 }
 
-func (s *MemoryStore) ListPins(_ context.Context, ownerID, categoryID string) ([]Pin, error) {
+func (s *MemoryStore) ListPins(_ context.Context, ownerID string) ([]Pin, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	prefix := ""
-	if categoryID != "" {
-		prefix = categoryID + "#"
-	}
 	var out []Pin
 	for _, p := range s.pins {
-		if p.OwnerID == ownerID && strings.HasPrefix(p.SK, prefix) {
+		if p.OwnerID == ownerID {
+			p.CategoryIDs = slices.Clone(p.CategoryIDs) // 呼び出し側が書き換えても保存内容が変わらないようにする
 			out = append(out, p)
 		}
 	}
@@ -109,10 +106,11 @@ func (s *MemoryStore) ListPins(_ context.Context, ownerID, categoryID string) ([
 	return out, nil
 }
 
-func (s *MemoryStore) GetPin(_ context.Context, ownerID, categoryID, pinID string) (Pin, error) {
+func (s *MemoryStore) GetPin(_ context.Context, ownerID, pinID string) (Pin, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	p, ok := s.pins[memKey(ownerID, pinSK(categoryID, pinID))]
+	p, ok := s.pins[memKey(ownerID, pinID)]
+	p.CategoryIDs = slices.Clone(p.CategoryIDs)
 	if !ok {
 		return Pin{}, ErrNotFound
 	}
@@ -126,6 +124,7 @@ func (s *MemoryStore) CreatePin(_ context.Context, p Pin) error {
 	if _, ok := s.pins[key]; ok {
 		return ErrConflict
 	}
+	p.CategoryIDs = slices.Clone(p.CategoryIDs)
 	s.pins[key] = p
 	return nil
 }
@@ -137,14 +136,15 @@ func (s *MemoryStore) UpdatePin(_ context.Context, p Pin) error {
 	if _, ok := s.pins[key]; !ok {
 		return ErrNotFound
 	}
+	p.CategoryIDs = slices.Clone(p.CategoryIDs)
 	s.pins[key] = p
 	return nil
 }
 
-func (s *MemoryStore) DeletePin(_ context.Context, ownerID, categoryID, pinID string) error {
+func (s *MemoryStore) DeletePin(_ context.Context, ownerID, pinID string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	key := memKey(ownerID, pinSK(categoryID, pinID))
+	key := memKey(ownerID, pinID)
 	if _, ok := s.pins[key]; !ok {
 		return ErrNotFound
 	}

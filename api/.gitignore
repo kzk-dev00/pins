@@ -1,2 +1,4 @@
 bootstrap
 function.zip
+# go build でできる実行ファイル
+/api

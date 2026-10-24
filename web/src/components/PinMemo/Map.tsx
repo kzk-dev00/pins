@@ -70,8 +70,11 @@ export default function PinMemoMap() {
   const sheetOpen = editing !== null;
 
   const hiddenSet = useMemo(() => new Set(hiddenIds), [hiddenIds]);
-  const categoryById = useMemo(() => new globalThis.Map(categories.map((c) => [c.categoryId, c])), [categories]);
-  const visiblePins = pins.filter((p) => !hiddenSet.has(p.categoryId));
+  // ピンのカテゴリのうち、1つでも ON なら表示する
+  const visiblePins = pins.filter((p) => p.categoryIds.some((id) => !hiddenSet.has(id)));
+  // ピンの色：ON のカテゴリのうち、一覧で一番上（categories は sortOrder 順）のカテゴリの色
+  const pinColor = (pin: Pin) =>
+    categories.find((c) => !hiddenSet.has(c.categoryId) && pin.categoryIds.includes(c.categoryId))?.color;
   // 新しいピンを入れるカテゴリ。メモのシートでカテゴリを選べるようになるまでは、ON のうち一番上のカテゴリ
   const targetCategory = categories.find((c) => !hiddenSet.has(c.categoryId)) ?? categories[0];
 
@@ -150,11 +153,16 @@ export default function PinMemoMap() {
     try {
       const memo = editing.memo.trim();
       if (editing.pin) {
-        const updated = await api.updatePin(editing.pin.categoryId, editing.pin.pinId, { memo });
+        const updated = await api.updatePin(editing.pin.pinId, { memo });
         setPins((prev) => prev.map((p) => (p.pinId === updated.pinId ? updated : p)));
       } else {
         if (!targetCategory) return;
-        const created = await api.createPin(targetCategory.categoryId, { lat: editing.lat, lng: editing.lng, memo });
+        const created = await api.createPin({
+          lat: editing.lat,
+          lng: editing.lng,
+          memo,
+          categoryIds: [targetCategory.categoryId],
+        });
         setPins((prev) => [...prev, created]);
       }
       setEditing(null);
@@ -171,7 +179,7 @@ export default function PinMemoMap() {
     setSaving(true);
     setError(null);
     try {
-      await api.deletePin(pin.categoryId, pin.pinId);
+      await api.deletePin(pin.pinId);
       setPins((prev) => prev.filter((p) => p.pinId !== pin.pinId));
       setEditing(null);
     } catch (err) {
@@ -186,7 +194,7 @@ export default function PinMemoMap() {
     setError(null);
     setPins((prev) => prev.map((p) => (p.pinId === pin.pinId ? { ...p, lat, lng } : p)));
     try {
-      const updated = await api.updatePin(pin.categoryId, pin.pinId, { lat, lng });
+      const updated = await api.updatePin(pin.pinId, { lat, lng });
       setPins((prev) => prev.map((p) => (p.pinId === updated.pinId ? updated : p)));
     } catch (err) {
       setPins((prev) => prev.map((p) => (p.pinId === pin.pinId ? pin : p)));
@@ -242,7 +250,12 @@ export default function PinMemoMap() {
     try {
       await api.deleteCategory(category.categoryId);
       setCategories((prev) => prev.filter((c) => c.categoryId !== category.categoryId));
-      setPins((prev) => prev.filter((p) => p.categoryId !== category.categoryId));
+      // API と同じく、各ピンからこのカテゴリを外し、どのカテゴリにも入らなくなったピンは消す
+      setPins((prev) =>
+        prev
+          .map((p) => ({ ...p, categoryIds: p.categoryIds.filter((id) => id !== category.categoryId) }))
+          .filter((p) => p.categoryIds.length > 0),
+      );
       if (hiddenSet.has(category.categoryId)) {
         const next = hiddenIds.filter((id) => id !== category.categoryId);
         setHiddenIds(next);
@@ -297,7 +310,7 @@ export default function PinMemoMap() {
           >
             <div
               className={styles.pin}
-              style={{ "--pin-color": categoryById.get(pin.categoryId)?.color } as CSSProperties}
+              style={{ "--pin-color": pinColor(pin) } as CSSProperties}
               title={pin.memo || "(メモなし)"}
             />
           </Marker>

@@ -31,8 +31,8 @@ func categoryKey(ownerID, categoryID string) map[string]types.AttributeValue {
 	return map[string]types.AttributeValue{"ownerId": attrS(ownerID), "categoryId": attrS(categoryID)}
 }
 
-func pinKey(ownerID, categoryID, pinID string) map[string]types.AttributeValue {
-	return map[string]types.AttributeValue{"ownerId": attrS(ownerID), "sk": attrS(pinSK(categoryID, pinID))}
+func pinKey(ownerID, pinID string) map[string]types.AttributeValue {
+	return map[string]types.AttributeValue{"ownerId": attrS(ownerID), "sk": attrS(pinID)}
 }
 
 func (s *DynamoStore) ListCategories(ctx context.Context, ownerID string) ([]Category, error) {
@@ -79,21 +79,16 @@ func (s *DynamoStore) FindCategoryByViewKey(ctx context.Context, viewKey string)
 	return c, err
 }
 
-func (s *DynamoStore) ListPins(ctx context.Context, ownerID, categoryID string) ([]Pin, error) {
-	input := &dynamodb.QueryInput{
+func (s *DynamoStore) ListPins(ctx context.Context, ownerID string) ([]Pin, error) {
+	return queryAll[Pin](ctx, s.client, &dynamodb.QueryInput{
 		TableName:                 aws.String(s.pinsTable),
 		KeyConditionExpression:    aws.String("ownerId = :o"),
 		ExpressionAttributeValues: map[string]types.AttributeValue{":o": attrS(ownerID)},
-	}
-	if categoryID != "" {
-		input.KeyConditionExpression = aws.String("ownerId = :o AND begins_with(sk, :p)")
-		input.ExpressionAttributeValues[":p"] = attrS(categoryID + "#")
-	}
-	return queryAll[Pin](ctx, s.client, input)
+	})
 }
 
-func (s *DynamoStore) GetPin(ctx context.Context, ownerID, categoryID, pinID string) (Pin, error) {
-	return getItem[Pin](ctx, s.client, s.pinsTable, pinKey(ownerID, categoryID, pinID))
+func (s *DynamoStore) GetPin(ctx context.Context, ownerID, pinID string) (Pin, error) {
+	return getItem[Pin](ctx, s.client, s.pinsTable, pinKey(ownerID, pinID))
 }
 
 func (s *DynamoStore) CreatePin(ctx context.Context, p Pin) error {
@@ -104,8 +99,8 @@ func (s *DynamoStore) UpdatePin(ctx context.Context, p Pin) error {
 	return s.put(ctx, s.pinsTable, p, "attribute_exists(ownerId)", ErrNotFound)
 }
 
-func (s *DynamoStore) DeletePin(ctx context.Context, ownerID, categoryID, pinID string) error {
-	return s.delete(ctx, s.pinsTable, pinKey(ownerID, categoryID, pinID))
+func (s *DynamoStore) DeletePin(ctx context.Context, ownerID, pinID string) error {
+	return s.delete(ctx, s.pinsTable, pinKey(ownerID, pinID))
 }
 
 // put は条件付きで項目を書き込む。条件を満たさなければ onFail を返す。
