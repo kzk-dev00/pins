@@ -43,6 +43,8 @@ npm run dev
 | `src/components/PinMemo/Map.module.css` | 地図まわりのスタイル |
 | `src/components/PinMemo/Menu.tsx` | 右上の ☰ から開くメニュー（カテゴリ一覧・追加） |
 | `src/components/PinMemo/Menu.module.css` | メニューのスタイル |
+| `src/components/PinMemo/CategoryPicker.tsx` | メモのシートでカテゴリを選ぶ欄（複数可） |
+| `src/components/PinMemo/CategoryPicker.module.css` | カテゴリを選ぶ欄のスタイル |
 | `src/lib/api.ts` | API の呼び出し |
 | `src/lib/guestToken.ts` | ゲストトークン（localStorage に保存） |
 | `src/lib/config.ts` | 環境変数から読む設定（地図の初期位置） |
@@ -55,5 +57,5 @@ MapLibre は Worker を本体のファイルの隣から読もうとするが、
 
 ## 今の制限
 
-- カテゴリの画面はまだない。ピンは自動で作るカテゴリ「マイピン」に入れている
+- 共有の操作と共有ページ（`/share/{viewKey}`）、「pins とは」はまだない
 - ゲストは1カテゴリにピン10件まで（API 側の上限）

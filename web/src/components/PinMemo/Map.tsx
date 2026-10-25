@@ -16,6 +16,7 @@ import { nextCategoryColor } from "@/lib/categoryColors";
 import { DEFAULT_VIEW } from "@/lib/config";
 import { loadHiddenCategoryIds, saveHiddenCategoryIds } from "@/lib/hiddenCategories";
 import { loadLastView, saveLastView } from "@/lib/lastView";
+import CategoryPicker from "./CategoryPicker";
 import Menu from "./Menu";
 import styles from "./Map.module.css";
 
@@ -27,8 +28,8 @@ const MAP_STYLE = "https://tiles.openfreemap.org/styles/liberty";
 const DEFAULT_CATEGORY_NAME = "マイピン";
 const MEMO_MAX_LENGTH = 200;
 
-// 編集中のピン。pin が null なら新規（まだ保存していない下書き）
-type Editing = { pin: Pin | null; lat: number; lng: number; memo: string };
+// 編集中のピン。pin が null なら新規（まだ保存していない下書き）。categoryIds はシートで選んでいるカテゴリ
+type Editing = { pin: Pin | null; lat: number; lng: number; memo: string; categoryIds: string[] };
 
 type Status = "loading" | "ready" | "error";
 
@@ -75,8 +76,8 @@ export default function PinMemoMap() {
   // ピンの色：ON のカテゴリのうち、一覧で一番上（categories は sortOrder 順）のカテゴリの色
   const pinColor = (pin: Pin) =>
     categories.find((c) => !hiddenSet.has(c.categoryId) && pin.categoryIds.includes(c.categoryId))?.color;
-  // 新しいピンを入れるカテゴリ。メモのシートでカテゴリを選べるようになるまでは、ON のうち一番上のカテゴリ
-  const targetCategory = categories.find((c) => !hiddenSet.has(c.categoryId)) ?? categories[0];
+  // 下書きのピンの色：シートで選んでいるカテゴリのうち、一覧で一番上のカテゴリの色（未選択なら既定の赤）
+  const draftColor = categories.find((c) => editing?.categoryIds.includes(c.categoryId))?.color;
 
   useEffect(() => {
     let cancelled = false;
@@ -123,19 +124,18 @@ export default function PinMemoMap() {
       setEditing(null);
       return;
     }
-    if (!targetCategory) {
-      setError("カテゴリがありません。右上のメニューからカテゴリを追加してください");
-      return;
-    }
     const { lat, lng } = e.lngLat;
     setError(null);
-    setEditing({ pin: null, lat, lng, memo: "" });
+    // 新しいピンは、カテゴリが何も選ばれていない状態から始める
+    setEditing({ pin: null, lat, lng, memo: "", categoryIds: [] });
   };
 
   const openPin = (pin: Pin) => {
     if (saving) return;
     setError(null);
-    setEditing({ pin, lat: pin.lat, lng: pin.lng, memo: pin.memo });
+    // 今入っているカテゴリにチェックを入れて開く（削除済みのカテゴリは除く）
+    const categoryIds = categories.filter((c) => pin.categoryIds.includes(c.categoryId)).map((c) => c.categoryId);
+    setEditing({ pin, lat: pin.lat, lng: pin.lng, memo: pin.memo, categoryIds });
   };
 
   const openMenu = () => {
@@ -147,21 +147,20 @@ export default function PinMemoMap() {
 
   const handleSave = async (e: FormEvent) => {
     e.preventDefault();
-    if (!editing || saving) return;
+    if (!editing || saving || editing.categoryIds.length === 0) return;
     setSaving(true);
     setError(null);
     try {
       const memo = editing.memo.trim();
       if (editing.pin) {
-        const updated = await api.updatePin(editing.pin.pinId, { memo });
+        const updated = await api.updatePin(editing.pin.pinId, { memo, categoryIds: editing.categoryIds });
         setPins((prev) => prev.map((p) => (p.pinId === updated.pinId ? updated : p)));
       } else {
-        if (!targetCategory) return;
         const created = await api.createPin({
           lat: editing.lat,
           lng: editing.lng,
           memo,
-          categoryIds: [targetCategory.categoryId],
+          categoryIds: editing.categoryIds,
         });
         setPins((prev) => [...prev, created]);
       }
@@ -320,7 +319,7 @@ export default function PinMemoMap() {
           <Marker latitude={editing.lat} longitude={editing.lng} anchor="bottom-left">
             <div
               className={`${styles.pin} ${styles.draft}`}
-              style={{ "--pin-color": targetCategory?.color } as CSSProperties}
+              style={{ "--pin-color": draftColor } as CSSProperties}
             />
           </Marker>
         )}
@@ -330,8 +329,8 @@ export default function PinMemoMap() {
         <span aria-hidden>☰</span>
       </button>
 
-      {/* 読み込み中とエラーだけ、左上に出す（メニューを開いているときはメニューの中に出す） */}
-      {!menuOpen && (status === "loading" || error) && (
+      {/* 読み込み中とエラーだけ、左上に出す（メニューやシートを開いているときは、その中に出す） */}
+      {!menuOpen && !editing && (status === "loading" || error) && (
         <div className={styles.status} role={error ? "alert" : "status"}>
           {error ?? "ピンを読み込んでいます…"}
         </div>
@@ -365,9 +364,6 @@ export default function PinMemoMap() {
               ×
             </button>
           </div>
-          <div className={styles.coord}>
-            {editing.lat.toFixed(5)}, {editing.lng.toFixed(5)}
-          </div>
           <textarea
             className={styles.memo}
             value={editing.memo}
@@ -376,6 +372,17 @@ export default function PinMemoMap() {
             maxLength={MEMO_MAX_LENGTH}
             autoFocus
           />
+          <CategoryPicker
+            categories={categories}
+            selectedIds={editing.categoryIds}
+            onChange={(categoryIds) => setEditing({ ...editing, categoryIds })}
+            disabled={saving}
+          />
+          {error && (
+            <p className={styles.sheetError} role="alert">
+              {error}
+            </p>
+          )}
           <div className={styles.row}>
             {editing.pin && (
               <button
@@ -387,7 +394,12 @@ export default function PinMemoMap() {
                 削除
               </button>
             )}
-            <button type="submit" className={`${styles.button} ${styles.primary}`} disabled={saving}>
+            <button
+              type="submit"
+              className={`${styles.button} ${styles.primary}`}
+              disabled={saving || editing.categoryIds.length === 0}
+              title={editing.categoryIds.length === 0 ? "カテゴリを1つ以上選んでください" : undefined}
+            >
               {saving ? "保存中…" : "保存"}
             </button>
           </div>
