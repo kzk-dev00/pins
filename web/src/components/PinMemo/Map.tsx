@@ -13,6 +13,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import * as api from "@/lib/api";
 import type { Category, Pin } from "@/lib/api";
 import { nextCategoryColor } from "@/lib/categoryColors";
+import { COMPACT_ATTRIBUTION, collapseAttribution } from "@/lib/attribution";
 import { DEFAULT_VIEW } from "@/lib/config";
 import { loadHiddenCategoryIds, saveHiddenCategoryIds } from "@/lib/hiddenCategories";
 import { loadLastView, saveLastView } from "@/lib/lastView";
@@ -301,8 +302,10 @@ export default function PinMemoMap() {
         initialViewState={lastView ?? DEFAULT_VIEW}
         mapStyle={MAP_STYLE}
         style={{ width: "100%", height: "100%" }}
+        attributionControl={COMPACT_ATTRIBUTION}
         onClick={handleMapClick}
-        onLoad={() => {
+        onLoad={(e) => {
+          collapseAttribution(e); // 帰属表示は ⓘ だけにたたんでおき、押したときだけ出す
           // 初回だけ自動で現在地へ移動する。2回目以降は右上のボタンを押したときだけ
           if (!lastView) geolocateRef.current?.trigger();
         }}

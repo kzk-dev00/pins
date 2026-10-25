@@ -1,0 +1,35 @@
+.about {
+  display: grid;
+  gap: 10px;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.about p {
+  margin: 0;
+}
+
+.lead {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  font-weight: 700;
+}
+
+.heading {
+  margin: 6px 0 0;
+  font-size: 14px;
+}
+
+.list {
+  margin: 0;
+  padding-left: 1.4em;
+  display: grid;
+  gap: 4px;
+}
+
+.credit {
+  font-size: 12px;
+  color: var(--muted);
+}

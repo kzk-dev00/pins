@@ -51,6 +51,9 @@ npm run dev
 | `src/components/Share/SharedMapLoader.tsx` | 共有ページの地図をブラウザでだけ読み込む |
 | `src/components/Share/SharedMap.tsx` | 共有ページの地図（見るだけ。ピンが収まる初期位置） |
 | `src/components/Share/Shared.module.css` | 共有ページのスタイル |
+| `src/components/Share/SharedMenu.tsx` | 共有ページの ☰ メニュー（「pins とは」だけ） |
+| `src/components/About/AboutContent.tsx` | 「pins とは」の本文（自分の地図と共有ページで共通） |
+| `src/components/About/About.module.css` | 「pins とは」のスタイル |
 | `src/lib/sharedCategory.ts` | 共有ページのデータの取得（GSI の反映遅れに備えて1回だけ再試行） |
 | `src/lib/api.ts` | API の呼び出し |
 | `src/lib/guestToken.ts` | ゲストトークン（localStorage に保存） |
@@ -64,5 +67,5 @@ MapLibre は Worker を本体のファイルの隣から読もうとするが、
 
 ## 今の制限
 
-- 「pins とは」（アプリの説明）はまだない
-- ゲストは1カテゴリにピン10件まで（API 側の上限）
+- 会員登録はまだない（ゲストのみ）
+- ゲストはカテゴリ3つまで、1カテゴリにピン10件まで（API 側の上限）

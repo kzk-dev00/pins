@@ -4,10 +4,12 @@ import { useEffect, useState, type CSSProperties } from "react";
 import Map, { GeolocateControl, Marker, NavigationControl } from "react-map-gl/maplibre";
 import { setWorkerUrl, type LngLatBoundsLike } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+import { COMPACT_ATTRIBUTION, collapseAttribution } from "@/lib/attribution";
 import { DEFAULT_VIEW } from "@/lib/config";
 import type { SharedCategory, SharedPin } from "@/lib/sharedCategory";
 import { useSheetHeight } from "../PinMemo/useSheetHeight";
 import mapStyles from "../PinMemo/Map.module.css";
+import SharedMenu from "./SharedMenu";
 import styles from "./Shared.module.css";
 
 // Worker は public/ から配信する（scripts/copy-maplibre-worker.mjs がコピーしている）
@@ -37,18 +39,19 @@ type Props = { category: SharedCategory; pins: SharedPin[] };
 export default function SharedMap({ category, pins }: Props) {
   const [initialViewState] = useState(() => initialView(pins));
   const [openPin, setOpenPin] = useState<SharedPin | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
   const sheetOpen = openPin !== null;
   const [sheetRef, sheetHeight] = useSheetHeight<HTMLDivElement>(sheetOpen);
 
-  // Esc でシートを閉じる
+  // Esc でシートを閉じる（メニューを開いているときはメニュー側で閉じる）
   useEffect(() => {
-    if (!sheetOpen) return;
+    if (!sheetOpen || menuOpen) return;
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpenPin(null);
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [sheetOpen]);
+  }, [sheetOpen, menuOpen]);
 
   return (
     <div
@@ -60,6 +63,8 @@ export default function SharedMap({ category, pins }: Props) {
         initialViewState={initialViewState}
         mapStyle={MAP_STYLE}
         style={{ width: "100%", height: "100%" }}
+        attributionControl={COMPACT_ATTRIBUTION}
+        onLoad={collapseAttribution} // 帰属表示は ⓘ だけにたたんでおき、押したときだけ出す
         onClick={() => setOpenPin(null)} // シートの外（地図）をタップしたら閉じる。ピンは立てない
       >
         <NavigationControl position="top-right" />
@@ -85,6 +90,20 @@ export default function SharedMap({ category, pins }: Props) {
           </Marker>
         ))}
       </Map>
+
+      <button
+        type="button"
+        className={mapStyles.menuButton}
+        onClick={() => {
+          setOpenPin(null);
+          setMenuOpen(true);
+        }}
+        aria-label="メニューを開く"
+      >
+        <span aria-hidden>☰</span>
+      </button>
+
+      {menuOpen && <SharedMenu onClose={() => setMenuOpen(false)} />}
 
       <header className={styles.header}>
         <span className={styles.dot} style={{ background: category.color }} aria-hidden />

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import type { Category } from "@/lib/api";
+import AboutContent from "../About/AboutContent";
 import SharePanel from "./SharePanel";
 import styles from "./Menu.module.css";
 
@@ -28,7 +29,7 @@ type Props = {
   onClose: () => void;
 };
 
-// 右上の ☰ から開くメニュー。カテゴリ一覧（ON/OFF・名前の変更・削除・共有）と、新規カテゴリの追加
+// 右上の ☰ から開くメニュー。カテゴリ一覧（ON/OFF・名前の変更・削除・共有）、新規カテゴリの追加、pins とは
 export default function Menu({
   categories,
   hiddenIds,
@@ -47,18 +48,21 @@ export default function Menu({
   // 共有画面を開いているカテゴリ
   const [sharingId, setSharingId] = useState<string | null>(null);
   const sharing = categories.find((c) => c.categoryId === sharingId) ?? null;
+  // 「pins とは」を開いているか
+  const [aboutOpen, setAboutOpen] = useState(false);
 
-  // Esc で閉じる（名前の変更中は変更だけを、共有画面ではカテゴリ一覧に戻る）
+  // Esc で閉じる（名前の変更中は変更だけを、共有画面と「pins とは」ではカテゴリ一覧に戻る）
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || busy) return;
       if (renaming) setRenaming(null);
       else if (sharingId) setSharingId(null);
+      else if (aboutOpen) setAboutOpen(false);
       else onClose();
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [busy, renaming, sharingId, onClose]);
+  }, [busy, renaming, sharingId, aboutOpen, onClose]);
 
   const handleCreate = async (e: FormEvent) => {
     e.preventDefault();
@@ -104,6 +108,14 @@ export default function Menu({
             onUnshare={onUnshare}
             onBack={() => setSharingId(null)}
           />
+        ) : aboutOpen ? (
+          <section className={styles.section}>
+            <button type="button" className={styles.back} onClick={() => setAboutOpen(false)}>
+              ← カテゴリ一覧に戻る
+            </button>
+            <h3 className={styles.shareTitle}>pins とは</h3>
+            <AboutContent />
+          </section>
         ) : (
           <>
             <section className={styles.section}>
@@ -203,6 +215,12 @@ export default function Menu({
               <p className={styles.counter}>
                 {[...newName.trim()].length}/{CATEGORY_NAME_MAX_LENGTH}
               </p>
+            </section>
+
+            <section className={styles.section}>
+              <button type="button" className={styles.menuLink} onClick={() => setAboutOpen(true)} disabled={busy}>
+                pins とは
+              </button>
             </section>
           </>
         )}
