@@ -181,3 +181,62 @@
 .danger {
   color: var(--accent);
 }
+
+/* 共有中のカテゴリの「共有中」ボタン */
+.sharing {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* 共有画面 */
+.back {
+  justify-self: start;
+  padding: 4px 0;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.back:focus-visible {
+  outline: 2px solid var(--accent);
+}
+
+.shareTitle {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+}
+
+.note {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.warning {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* 共有画面のボタンは、どれも横いっぱいの同じ大きさにする */
+.actions .button {
+  flex: 1;
+  padding: 10px 12px;
+}

@@ -45,6 +45,13 @@ npm run dev
 | `src/components/PinMemo/Menu.module.css` | メニューのスタイル |
 | `src/components/PinMemo/CategoryPicker.tsx` | メモのシートでカテゴリを選ぶ欄（複数可） |
 | `src/components/PinMemo/CategoryPicker.module.css` | カテゴリを選ぶ欄のスタイル |
+| `src/components/PinMemo/SharePanel.tsx` | メニューの中の共有画面（URL の作成・コピー・作り直し・共有をやめる） |
+| `src/components/PinMemo/useSheetHeight.ts` | 下から出るシートの高さを測る（帰属表示を持ち上げるため） |
+| `src/app/share/[viewKey]/page.tsx` | 共有ページ。サーバー側でデータを取り、OGP のタグを出す |
+| `src/components/Share/SharedMapLoader.tsx` | 共有ページの地図をブラウザでだけ読み込む |
+| `src/components/Share/SharedMap.tsx` | 共有ページの地図（見るだけ。ピンが収まる初期位置） |
+| `src/components/Share/Shared.module.css` | 共有ページのスタイル |
+| `src/lib/sharedCategory.ts` | 共有ページのデータの取得（GSI の反映遅れに備えて1回だけ再試行） |
 | `src/lib/api.ts` | API の呼び出し |
 | `src/lib/guestToken.ts` | ゲストトークン（localStorage に保存） |
 | `src/lib/config.ts` | 環境変数から読む設定（地図の初期位置） |
@@ -57,5 +64,5 @@ MapLibre は Worker を本体のファイルの隣から読もうとするが、
 
 ## 今の制限
 
-- 共有の操作と共有ページ（`/share/{viewKey}`）、「pins とは」はまだない
+- 「pins とは」（アプリの説明）はまだない
 - ゲストは1カテゴリにピン10件まで（API 側の上限）

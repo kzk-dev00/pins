@@ -88,6 +88,16 @@ export function deleteCategory(categoryId: string): Promise<void> {
   return request("DELETE", `/categories/${categoryId}`);
 }
 
+// 共有 URL 用のキーを作る。共有中なら作り直し（古い URL は使えなくなる）
+export async function shareCategory(categoryId: string): Promise<string> {
+  const data = await request<{ viewKey: string }>("POST", `/categories/${categoryId}/share`);
+  return data.viewKey;
+}
+
+export function unshareCategory(categoryId: string): Promise<void> {
+  return request("DELETE", `/categories/${categoryId}/share`);
+}
+
 // 自分のピンを全部返す。カテゴリでの絞り込みは画面側で行う
 export async function listPins(): Promise<Pin[]> {
   const data = await request<{ pins: Pin[] }>("GET", "/pins");

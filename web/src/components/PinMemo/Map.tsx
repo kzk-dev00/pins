@@ -18,6 +18,7 @@ import { loadHiddenCategoryIds, saveHiddenCategoryIds } from "@/lib/hiddenCatego
 import { loadLastView, saveLastView } from "@/lib/lastView";
 import CategoryPicker from "./CategoryPicker";
 import Menu from "./Menu";
+import { useSheetHeight } from "./useSheetHeight";
 import styles from "./Map.module.css";
 
 // Worker は public/ から配信する（scripts/copy-maplibre-worker.mjs がコピーしている）
@@ -66,9 +67,8 @@ export default function PinMemoMap() {
   // 前回見ていた位置。初回（保存なし）は null
   const [lastView] = useState(loadLastView);
   // シートの高さ。開いているあいだ、右下の帰属表示をこの分だけ持ち上げてボタンと重ならないようにする
-  const sheetRef = useRef<HTMLFormElement>(null);
-  const [sheetHeight, setSheetHeight] = useState(0);
   const sheetOpen = editing !== null;
+  const [sheetRef, sheetHeight] = useSheetHeight<HTMLFormElement>(sheetOpen);
 
   const hiddenSet = useMemo(() => new Set(hiddenIds), [hiddenIds]);
   // ピンのカテゴリのうち、1つでも ON なら表示する
@@ -97,14 +97,6 @@ export default function PinMemoMap() {
       cancelled = true;
     };
   }, []);
-
-  useEffect(() => {
-    const sheet = sheetRef.current;
-    if (!sheetOpen || !sheet) return;
-    const observer = new ResizeObserver(() => setSheetHeight(sheet.offsetHeight));
-    observer.observe(sheet);
-    return () => observer.disconnect();
-  }, [sheetOpen]);
 
   // Esc でシートを閉じる（メニューを開いているときはメニュー側で閉じる）
   useEffect(() => {
@@ -239,6 +231,37 @@ export default function PinMemoMap() {
     }
   };
 
+  // 共有 URL を作る（共有中なら作り直す。確認ダイアログは SharePanel 側で出す）
+  const handleShareCategory = async (categoryId: string) => {
+    setSaving(true);
+    setError(null);
+    try {
+      const viewKey = await api.shareCategory(categoryId);
+      setCategories((prev) => prev.map((c) => (c.categoryId === categoryId ? { ...c, viewKey } : c)));
+      return true;
+    } catch (err) {
+      setError(api.errorMessage(err));
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleUnshareCategory = async (categoryId: string) => {
+    setSaving(true);
+    setError(null);
+    try {
+      await api.unshareCategory(categoryId);
+      setCategories((prev) => prev.map((c) => (c.categoryId === categoryId ? { ...c, viewKey: undefined } : c)));
+      return true;
+    } catch (err) {
+      setError(api.errorMessage(err));
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleDeleteCategory = async (category: Category) => {
     const ok = window.confirm(
       `「${category.name}」を削除しますか？\nこのカテゴリにだけ入っているピンも一緒に削除されます。`,
@@ -346,6 +369,8 @@ export default function PinMemoMap() {
           onCreate={handleCreateCategory}
           onRename={handleRenameCategory}
           onDelete={handleDeleteCategory}
+          onShare={handleShareCategory}
+          onUnshare={handleUnshareCategory}
           onClose={() => setMenuOpen(false)}
         />
       )}
