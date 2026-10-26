@@ -41,7 +41,7 @@ export default function PinMemoSharePanel({ category, busy, onShare, onUnshare, 
   return (
     <section className={styles.section}>
       <button type="button" className={styles.back} onClick={onBack} disabled={busy}>
-        ← カテゴリ一覧に戻る
+        ← 戻る
       </button>
       <h3 className={styles.shareTitle}>
         <span className={styles.dot} style={{ background: category.color }} aria-hidden />
