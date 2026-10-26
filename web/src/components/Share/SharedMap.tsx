@@ -8,6 +8,7 @@ import { COMPACT_ATTRIBUTION, collapseAttribution } from "@/lib/attribution";
 import { DEFAULT_VIEW } from "@/lib/config";
 import type { SharedCategory, SharedPin } from "@/lib/sharedCategory";
 import { useSheetHeight } from "../PinMemo/useSheetHeight";
+import PinMemoPinIcon from "../PinMemo/PinMemoPinIcon";
 import mapStyles from "../PinMemo/PinMemoMap.module.css";
 import SharedMenu from "./SharedMenu";
 import styles from "./Shared.module.css";
@@ -82,11 +83,7 @@ export default function SharedMap({ category, pins }: Props) {
               setOpenPin(pin);
             }}
           >
-            <div
-              className={mapStyles.pin}
-              style={{ "--pin-color": category.color } as CSSProperties}
-              title={pin.memo || "(メモなし)"}
-            />
+            <PinMemoPinIcon color={category.color} title={pin.title} tooltip={pin.memo || undefined} />
           </Marker>
         ))}
       </Map>
@@ -115,7 +112,7 @@ export default function SharedMap({ category, pins }: Props) {
         <div ref={sheetRef} className={mapStyles.sheet} role="dialog" aria-labelledby="shared-memo-title">
           <div className={mapStyles.sheetHeader}>
             <h2 id="shared-memo-title" className={mapStyles.sheetTitle}>
-              メモ
+              {openPin.title || "メモ"}
             </h2>
             <button type="button" className={mapStyles.sheetClose} onClick={() => setOpenPin(null)} aria-label="閉じる">
               ×

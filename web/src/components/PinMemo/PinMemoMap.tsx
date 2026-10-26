@@ -19,6 +19,7 @@ import { loadHiddenCategoryIds, saveHiddenCategoryIds } from "@/lib/hiddenCatego
 import { loadLastView, saveLastView } from "@/lib/lastView";
 import PinMemoCategoryPicker from "./PinMemoCategoryPicker";
 import PinMemoMenu from "./PinMemoMenu";
+import PinMemoPinIcon from "./PinMemoPinIcon";
 import { useSheetHeight } from "./useSheetHeight";
 import styles from "./PinMemoMap.module.css";
 
@@ -28,10 +29,11 @@ setWorkerUrl("/maplibre-gl-worker.mjs");
 const MAP_STYLE = "https://tiles.openfreemap.org/styles/liberty";
 // 初めて開いたとき、カテゴリがなければ自動で作る
 const DEFAULT_CATEGORY_NAME = "マイピン";
+const TITLE_MAX_LENGTH = 20;
 const MEMO_MAX_LENGTH = 200;
 
 // 編集中のピン。pin が null なら新規（まだ保存していない下書き）。categoryIds はシートで選んでいるカテゴリ
-type Editing = { pin: Pin | null; lat: number; lng: number; memo: string; categoryIds: string[] };
+type Editing = { pin: Pin | null; lat: number; lng: number; title: string; memo: string; categoryIds: string[] };
 
 type Status = "loading" | "ready" | "error";
 
@@ -120,7 +122,7 @@ export default function PinMemoMap() {
     const { lat, lng } = e.lngLat;
     setError(null);
     // 新しいピンは、カテゴリが何も選ばれていない状態から始める
-    setEditing({ pin: null, lat, lng, memo: "", categoryIds: [] });
+    setEditing({ pin: null, lat, lng, title: "", memo: "", categoryIds: [] });
   };
 
   const openPin = (pin: Pin) => {
@@ -128,7 +130,7 @@ export default function PinMemoMap() {
     setError(null);
     // 今入っているカテゴリにチェックを入れて開く（削除済みのカテゴリは除く）
     const categoryIds = categories.filter((c) => pin.categoryIds.includes(c.categoryId)).map((c) => c.categoryId);
-    setEditing({ pin, lat: pin.lat, lng: pin.lng, memo: pin.memo, categoryIds });
+    setEditing({ pin, lat: pin.lat, lng: pin.lng, title: pin.title ?? "", memo: pin.memo, categoryIds });
   };
 
   const openMenu = () => {
@@ -144,14 +146,16 @@ export default function PinMemoMap() {
     setSaving(true);
     setError(null);
     try {
+      const title = editing.title.trim();
       const memo = editing.memo.trim();
       if (editing.pin) {
-        const updated = await api.updatePin(editing.pin.pinId, { memo, categoryIds: editing.categoryIds });
+        const updated = await api.updatePin(editing.pin.pinId, { title, memo, categoryIds: editing.categoryIds });
         setPins((prev) => prev.map((p) => (p.pinId === updated.pinId ? updated : p)));
       } else {
         const created = await api.createPin({
           lat: editing.lat,
           lng: editing.lng,
+          title,
           memo,
           categoryIds: editing.categoryIds,
         });
@@ -333,20 +337,14 @@ export default function PinMemoMap() {
             }}
             onDragEnd={(e) => handleDragEnd(pin, e.lngLat.lat, e.lngLat.lng)}
           >
-            <div
-              className={styles.pin}
-              style={{ "--pin-color": pinColor(pin) } as CSSProperties}
-              title={pin.memo || "(メモなし)"}
-            />
+            <PinMemoPinIcon color={pinColor(pin)} title={pin.title} tooltip={pin.memo || undefined} />
           </Marker>
         ))}
 
         {editing && !editing.pin && (
           <Marker latitude={editing.lat} longitude={editing.lng} anchor="bottom-left">
-            <div
-              className={`${styles.pin} ${styles.draft}`}
-              style={{ "--pin-color": draftColor } as CSSProperties}
-            />
+            {/* 入力中のタイトルも、下書きのピンの上に出す */}
+            <PinMemoPinIcon color={draftColor} title={editing.title.trim()} draft />
           </Marker>
         )}
       </Map>
@@ -392,13 +390,22 @@ export default function PinMemoMap() {
               ×
             </button>
           </div>
+          <input
+            className={styles.titleInput}
+            value={editing.title}
+            onChange={(e) => setEditing({ ...editing, title: e.target.value })}
+            placeholder="タイトル（例：カレー屋さん）"
+            maxLength={TITLE_MAX_LENGTH}
+            aria-label="タイトル"
+            autoFocus
+          />
           <textarea
             className={styles.memo}
             value={editing.memo}
             onChange={(e) => setEditing({ ...editing, memo: e.target.value })}
-            placeholder="例：気になるカフェ。土日は混むらしい"
+            placeholder="メモ（例：気になるカフェ。土日は混むらしい）"
             maxLength={MEMO_MAX_LENGTH}
-            autoFocus
+            aria-label="メモ"
           />
           <PinMemoCategoryPicker
             categories={categories}

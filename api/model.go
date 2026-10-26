@@ -28,6 +28,7 @@ type Pin struct {
 	CategoryIDs []string `dynamodbav:"categoryIds"` // 1件以上
 	Lat         float64  `dynamodbav:"lat"`
 	Lng         float64  `dynamodbav:"lng"`
+	Title       string   `dynamodbav:"title"` // ピンの上に出す見出し（空でもよい）
 	Memo        string   `dynamodbav:"memo"`
 	CreatedAt   string   `dynamodbav:"createdAt"`
 	UpdatedAt   string   `dynamodbav:"updatedAt"`
@@ -61,6 +62,7 @@ type pinJSON struct {
 	CategoryIDs []string `json:"categoryIds"`
 	Lat         float64  `json:"lat"`
 	Lng         float64  `json:"lng"`
+	Title       string   `json:"title"`
 	Memo        string   `json:"memo"`
 	CreatedAt   string   `json:"createdAt"`
 	UpdatedAt   string   `json:"updatedAt"`
@@ -77,6 +79,7 @@ type sharedPinJSON struct {
 	PinID     string  `json:"pinId"`
 	Lat       float64 `json:"lat"`
 	Lng       float64 `json:"lng"`
+	Title     string  `json:"title"`
 	Memo      string  `json:"memo"`
 	CreatedAt string  `json:"createdAt"`
 	UpdatedAt string  `json:"updatedAt"`
@@ -101,6 +104,7 @@ func (p Pin) toJSON() pinJSON {
 		CategoryIDs: p.CategoryIDs,
 		Lat:         p.Lat,
 		Lng:         p.Lng,
+		Title:       p.Title,
 		Memo:        p.Memo,
 		CreatedAt:   p.CreatedAt,
 		UpdatedAt:   p.UpdatedAt,
@@ -113,6 +117,7 @@ func (p Pin) toSharedJSON() sharedPinJSON {
 		PinID:     p.PinID,
 		Lat:       p.Lat,
 		Lng:       p.Lng,
+		Title:     p.Title,
 		Memo:      p.Memo,
 		CreatedAt: p.CreatedAt,
 		UpdatedAt: p.UpdatedAt,

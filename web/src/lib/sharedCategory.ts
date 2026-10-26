@@ -7,6 +7,7 @@ export type SharedPin = {
   pinId: string;
   lat: number;
   lng: number;
+  title: string;
   memo: string;
   createdAt: string;
   updatedAt: string;

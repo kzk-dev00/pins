@@ -159,8 +159,8 @@ type categoryInput struct {
 // validate は入力をチェックし、名前と色を保存する形に整える。
 func (in *categoryInput) validate() error {
 	if in.Name != nil {
-		name, ok := normalizeCategoryName(*in.Name)
-		if !ok {
+		name := normalizeCategoryName(*in.Name)
+		if !validCategoryName(name) {
 			return invalidInput("カテゴリ名は1〜30文字で入力してください")
 		}
 		in.Name = &name
@@ -362,6 +362,7 @@ func (a *App) unshareCategory(ctx context.Context, r *request) (events.APIGatewa
 type pinInput struct {
 	Lat         *float64  `json:"lat"`
 	Lng         *float64  `json:"lng"`
+	Title       *string   `json:"title"`
 	Memo        *string   `json:"memo"`
 	CategoryIDs *[]string `json:"categoryIds"`
 }
@@ -372,6 +373,13 @@ func (in *pinInput) validate() error {
 	}
 	if in.Lng != nil && !validLng(*in.Lng) {
 		return invalidInput("経度は -180〜180 の範囲で指定してください")
+	}
+	if in.Title != nil {
+		title, ok := normalizePinTitle(*in.Title)
+		if !ok {
+			return invalidInput("タイトルは20文字以内で入力してください")
+		}
+		in.Title = &title
 	}
 	if in.Memo != nil && !validMemo(*in.Memo) {
 		return invalidInput("メモは200文字以内で入力してください")
@@ -443,6 +451,7 @@ func (a *App) createPin(ctx context.Context, r *request) (events.APIGatewayV2HTT
 		CategoryIDs: *in.CategoryIDs,
 		Lat:         *in.Lat,
 		Lng:         *in.Lng,
+		Title:       deref(in.Title),
 		Memo:        deref(in.Memo),
 		CreatedAt:   now,
 		UpdatedAt:   now,
@@ -496,6 +505,9 @@ func (a *App) updatePin(ctx context.Context, r *request) (events.APIGatewayV2HTT
 	}
 	if in.Lng != nil {
 		p.Lng = *in.Lng
+	}
+	if in.Title != nil {
+		p.Title = *in.Title
 	}
 	if in.Memo != nil {
 		p.Memo = *in.Memo

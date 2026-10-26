@@ -702,3 +702,68 @@ func TestRandomID(t *testing.T) {
 		seen[id] = true
 	}
 }
+
+func TestPinTitle(t *testing.T) {
+	e := newTestEnv(t)
+	as := guest(tokenA)
+	c := e.createCategory(as, `{"name":"a"}`)
+	body := func(title string) string {
+		return `{"lat":35,"lng":139,"title":"` + title + `","categoryIds":["` + c.CategoryID + `"]}`
+	}
+
+	// 前後の空白は消して保存する
+	var p pinJSON
+	e.do(as, http.MethodPost, "/pins", body("  カレー屋さん  ")).expect(http.StatusCreated).decode(&p)
+	if p.Title != "カレー屋さん" {
+		t.Fatalf("title = %q", p.Title)
+	}
+
+	// 20文字まで。21文字はエラー
+	e.do(as, http.MethodPost, "/pins", body(strings.Repeat("あ", 20))).expect(http.StatusCreated)
+	e.do(as, http.MethodPost, "/pins", body(strings.Repeat("あ", 21))).expectError(http.StatusBadRequest, "invalid_input")
+
+	// タイトルは任意
+	untitled := e.createPin(as, 35, 139, "", c.CategoryID)
+	if untitled.Title != "" {
+		t.Fatalf("title = %q, want 空", untitled.Title)
+	}
+
+	// 編集。送らなければ変わらず、空文字を送れば消える
+	var updated pinJSON
+	e.do(as, http.MethodPatch, "/pins/"+p.PinID, `{"memo":"辛口"}`).expect(http.StatusOK).decode(&updated)
+	if updated.Title != "カレー屋さん" {
+		t.Fatalf("タイトルを送っていないのに変わった: %q", updated.Title)
+	}
+	e.do(as, http.MethodPatch, "/pins/"+p.PinID, `{"title":"スープカレー"}`).expect(http.StatusOK).decode(&updated)
+	if updated.Title != "スープカレー" || updated.Memo != "辛口" {
+		t.Fatalf("編集結果が違う: %+v", updated)
+	}
+	e.do(as, http.MethodPatch, "/pins/"+p.PinID, `{"title":""}`).expect(http.StatusOK).decode(&updated)
+	if updated.Title != "" {
+		t.Fatalf("タイトルを消せていない: %q", updated.Title)
+	}
+	e.do(as, http.MethodPatch, "/pins/"+p.PinID, `{"title":"`+strings.Repeat("あ", 21)+`"}`).expectError(http.StatusBadRequest, "invalid_input")
+
+	// 共有ページにもタイトルを返す
+	e.do(as, http.MethodPatch, "/pins/"+p.PinID, `{"title":"カレー屋さん"}`).expect(http.StatusOK)
+	viewKey := e.share(as, c.CategoryID)
+	resp := e.do(anonymous, http.MethodGet, "/share/"+viewKey, "").expect(http.StatusOK)
+	if !strings.Contains(resp.body, `"title":"カレー屋さん"`) {
+		t.Fatalf("共有ページにタイトルがない: %s", resp.body)
+	}
+}
+
+func TestPinWithoutTitleAttribute(t *testing.T) {
+	e := newTestEnv(t)
+	as := guest(tokenA)
+	c := e.createCategory(as, `{"name":"a"}`)
+	// タイトルを追加する前に作ったピン（title の項目がない）も、空のタイトルとして返す
+	old := Pin{OwnerID: guestOwnerID(tokenA), SK: "ABCDEFGHIJKL", PinID: "ABCDEFGHIJKL", CategoryIDs: []string{c.CategoryID}, ExpiresAt: c.ExpiresAt}
+	if err := e.store.CreatePin(context.Background(), old); err != nil {
+		t.Fatal(err)
+	}
+	pins := e.listPins(as)
+	if len(pins) != 1 || pins[0].Title != "" {
+		t.Fatalf("古いピンが返らない、またはタイトルが空でない: %+v", pins)
+	}
+}

@@ -196,3 +196,47 @@
   place-items: center;
   color: var(--muted);
 }
+
+/* ピンとタイトルのラベルをまとめる枠。大きさはピンと同じにして、ラベルはその上に重ねる */
+.marker {
+  position: relative;
+  width: 28px;
+  height: 28px;
+}
+
+/* ピンの真上に出すタイトル */
+.label {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 160px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--fg);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.2);
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none; /* ラベルの上をタップしても、地図やピンの操作を邪魔しない */
+}
+
+/* シートのタイトルの入力欄 */
+.titleInput {
+  width: 100%;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+}
+
+.titleInput:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}

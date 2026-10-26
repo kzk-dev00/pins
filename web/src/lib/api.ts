@@ -17,6 +17,7 @@ export type Pin = {
   categoryIds: string[]; // 1件以上。1つのピンを複数のカテゴリに入れられる
   lat: number;
   lng: number;
+  title: string;
   memo: string;
   createdAt: string;
   updatedAt: string;
@@ -104,14 +105,20 @@ export async function listPins(): Promise<Pin[]> {
   return data.pins;
 }
 
-export function createPin(input: { lat: number; lng: number; memo?: string; categoryIds: string[] }): Promise<Pin> {
+export function createPin(input: {
+  lat: number;
+  lng: number;
+  title?: string;
+  memo?: string;
+  categoryIds: string[];
+}): Promise<Pin> {
   return request("POST", "/pins", input);
 }
 
 // categoryIds を渡すと、カテゴリを付け替える
 export function updatePin(
   pinId: string,
-  input: { lat?: number; lng?: number; memo?: string; categoryIds?: string[] },
+  input: { lat?: number; lng?: number; title?: string; memo?: string; categoryIds?: string[] },
 ): Promise<Pin> {
   return request("PATCH", `/pins/${pinId}`, input);
 }

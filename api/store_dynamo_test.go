@@ -53,6 +53,9 @@ func TestPinItemShape(t *testing.T) {
 	if _, ok := item["expiresAt"].(*types.AttributeValueMemberN); !ok {
 		t.Error("expiresAt が Number 型になっていない")
 	}
+	if _, ok := item["title"].(*types.AttributeValueMemberS); !ok {
+		t.Error("空のタイトルが文字列として保存されていない")
+	}
 	if _, ok := item["memo"].(*types.AttributeValueMemberS); !ok {
 		t.Error("空のメモが文字列として保存されていない")
 	}
