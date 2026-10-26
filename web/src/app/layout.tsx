@@ -10,7 +10,7 @@ const zenKakuGothicNew = Zen_Kaku_Gothic_New({
 });
 
 export const metadata: Metadata = {
-  title: "ピンメモ地図",
+  title: "pins",
   description: "地図をタップしてピンとメモを残せるアプリ",
 };
 

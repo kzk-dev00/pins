@@ -1,6 +1,6 @@
 # web
 
-ピンメモ地図のフロントエンド（Next.js / React / TypeScript）。仕様はリポジトリ直下の `design.md` を参照。
+pins（ピンメモ地図）のフロントエンド（Next.js / React / TypeScript）。仕様はリポジトリ直下の `design.md` を参照。
 
 地図は MapLibre GL JS ＋ react-map-gl、地図タイルは OpenFreeMap。API は `api/`（API Gateway → Lambda → DynamoDB）。
 

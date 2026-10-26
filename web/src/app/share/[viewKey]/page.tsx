@@ -4,7 +4,7 @@ import SharedMapLoader from "@/components/Share/SharedMapLoader";
 import { fetchSharedCategory } from "@/lib/sharedCategory";
 import styles from "@/components/Share/Shared.module.css";
 
-const APP_NAME = "ピンメモ地図";
+const APP_NAME = "pins";
 
 // LINE や X に URL を貼ったときのプレビュー（OGP）に、カテゴリ名を出す。
 // 共有ページは URL を知っている人だけに見せるものなので、検索エンジンには載せない
