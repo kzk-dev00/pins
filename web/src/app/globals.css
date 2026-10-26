@@ -38,3 +38,12 @@ body {
   font-family: var(--font);
   font-size: 15px;
 }
+
+/* iPhone の Safari は、文字が 16px より小さい入力欄にカーソルが入ると、ページを自動で拡大し、
+   キーボードを閉じても拡大されたまま残る（右上の ☰ ボタンなどが画面の外にはみ出す）。
+   入力欄だけ 16px にして、自動の拡大を起こさないようにする */
+input,
+textarea,
+select {
+  font-size: 16px;
+}
