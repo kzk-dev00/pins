@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
 import type { Category } from "@/lib/api";
 import AboutContact from "../About/AboutContact";
@@ -116,7 +117,7 @@ export default function PinMemoMenu({
         ) : page ? (
           <section className={styles.section}>
             <button type="button" className={styles.back} onClick={() => setPage(null)}>
-              ← カテゴリ一覧に戻る
+              ← 戻る
             </button>
             <h3 className={styles.shareTitle}>{page === "about" ? "pins とは" : "お問い合わせ"}</h3>
             {page === "about" ? <AboutContent /> : <AboutContact />}
@@ -231,6 +232,9 @@ export default function PinMemoMenu({
               <button type="button" className={styles.menuLink} onClick={() => setPage("contact")} disabled={busy}>
                 お問い合わせ
               </button>
+              <Link className={styles.menuLink} href="/privacy">
+                プライバシーポリシー
+              </Link>
             </section>
           </>
         )}

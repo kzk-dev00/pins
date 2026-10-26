@@ -1,11 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import AboutContact from "../About/AboutContact";
 import AboutContent from "../About/AboutContent";
 import styles from "../PinMemo/PinMemoMenu.module.css";
 
-// 共有ページの ☰ メニュー。見るだけのページなので、中身は「pins とは」と「お問い合わせ」だけ
+// 共有ページの ☰ メニュー。見るだけのページなので、中身は「pins とは」「お問い合わせ」「プライバシーポリシー」だけ
 export default function SharedMenu({ onClose }: { onClose: () => void }) {
   const [page, setPage] = useState<"about" | "contact" | null>(null);
 
@@ -41,7 +42,7 @@ export default function SharedMenu({ onClose }: { onClose: () => void }) {
         {page ? (
           <section className={styles.section}>
             <button type="button" className={styles.back} onClick={() => setPage(null)}>
-              ← メニューに戻る
+              ← 戻る
             </button>
             <h3 className={styles.shareTitle}>{page === "about" ? "pins とは" : "お問い合わせ"}</h3>
             {page === "about" ? <AboutContent shared /> : <AboutContact />}
@@ -54,6 +55,9 @@ export default function SharedMenu({ onClose }: { onClose: () => void }) {
             <button type="button" className={styles.menuLink} onClick={() => setPage("contact")}>
               お問い合わせ
             </button>
+            <Link className={styles.menuLink} href="/privacy">
+              プライバシーポリシー
+            </Link>
           </section>
         )}
       </aside>

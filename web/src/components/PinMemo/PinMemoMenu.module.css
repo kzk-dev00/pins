@@ -260,6 +260,7 @@
   color: var(--fg);
   font: inherit;
   text-align: left;
+  text-decoration: none; /* リンク（プライバシーポリシー）でもボタンと同じ見た目にする */
   cursor: pointer;
 }
 

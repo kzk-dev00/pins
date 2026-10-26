@@ -38,6 +38,8 @@ npm run dev
 | ファイル | 内容 |
 |---|---|
 | `src/app/page.tsx` | トップページ。地図を表示するだけ |
+| `src/app/privacy/page.tsx` | プライバシーポリシー（`/privacy`） |
+| `src/app/icon.svg` | ファビコン（地図のピンと同じ形） |
 | `src/components/PinMemo/PinMemoMapLoader.tsx` | 地図をブラウザでだけ読み込む（`ssr: false`） |
 | `src/components/PinMemo/PinMemoMap.tsx` | 地図、ピン、メモ入力シート |
 | `src/components/PinMemo/PinMemoMap.module.css` | 地図まわりのスタイル |

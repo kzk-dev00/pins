@@ -1,0 +1,51 @@
+.page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+  line-height: 1.8;
+}
+
+.page p {
+  margin: 0 0 12px;
+}
+
+.title {
+  margin: 0 0 16px;
+  font-size: 22px;
+}
+
+.heading {
+  margin: 28px 0 8px;
+  font-size: 16px;
+}
+
+.list {
+  margin: 0 0 12px;
+  padding-left: 1.4em;
+}
+
+.link {
+  color: var(--accent);
+  font-weight: 700;
+  word-break: break-all;
+}
+
+.date {
+  margin-top: 28px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* メニューの「← 戻る」（PinMemoMenu.module.css の .back）と同じ見た目にそろえる */
+.back {
+  display: inline-block;
+  margin-top: 16px;
+  padding: 4px 0;
+  color: var(--muted);
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.back:focus-visible {
+  outline: 2px solid var(--accent);
+}
