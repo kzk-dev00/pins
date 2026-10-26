@@ -1,4 +1,4 @@
-import type { Metadata, Viewport } from "next";
+import type { Metadata } from "next";
 import { Zen_Kaku_Gothic_New } from "next/font/google";
 import "./globals.css";
 
@@ -14,9 +14,8 @@ export const metadata: Metadata = {
   description: "地図をタップしてピンとメモを残せるアプリ",
 };
 
-export const viewport: Viewport = {
-  viewportFit: "cover", // iPhone の画面下の余白（safe-area）まで使う
-};
+// viewport-fit=cover は使わない。iOS 26 の Safari ではページがアドレスバーの裏まで広がり、
+// 右上の ☰ ボタンなどがバーに隠れてしまうため（env(safe-area-inset-*) にはバーの高さが入らない）
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
