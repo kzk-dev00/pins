@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4 -3 36 41">
+  <!-- 地図のピンと同じ形（PinMemoMap.module.css の .pin）。四角の3つの角を丸め、-45度回してとがった角を下に向ける -->
+  <path
+    d="M0 14 A14 14 0 0 1 14 0 A14 14 0 0 1 28 14 A14 14 0 0 1 14 28 L0 28 Z"
+    transform="rotate(-45 14 14)"
+    fill="#E0472F"
+    stroke="#ffffff"
+    stroke-width="2.5"
+    stroke-linejoin="round"
+  />
+</svg>
