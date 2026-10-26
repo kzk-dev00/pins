@@ -47,6 +47,7 @@ npm run dev
 | `src/components/PinMemo/PinMemoCategoryPicker.module.css` | カテゴリを選ぶ欄のスタイル |
 | `src/components/PinMemo/PinMemoPinIcon.tsx` | 地図に立てるピンの見た目と、その上のタイトルのラベル（共有ページでも使う） |
 | `src/components/PinMemo/PinMemoSharePanel.tsx` | メニューの中の共有画面（URL の作成・コピー・作り直し・共有をやめる） |
+| `src/components/PinMemo/usePinFront.ts` | ピンが重なったとき、最後に触ったピンを一番上に出す（触った順を覚える） |
 | `src/components/PinMemo/useSheetHeight.ts` | 下から出るシートの高さを測る（帰属表示を持ち上げるため） |
 | `src/app/share/[viewKey]/page.tsx` | 共有ページ。サーバー側でデータを取り、OGP のタグを出す |
 | `src/components/Share/SharedMapLoader.tsx` | 共有ページの地図をブラウザでだけ読み込む |

@@ -20,6 +20,7 @@ import { loadLastView, saveLastView } from "@/lib/lastView";
 import PinMemoCategoryPicker from "./PinMemoCategoryPicker";
 import PinMemoMenu from "./PinMemoMenu";
 import PinMemoPinIcon from "./PinMemoPinIcon";
+import { usePinFront } from "./usePinFront";
 import { useSheetHeight } from "./useSheetHeight";
 import styles from "./PinMemoMap.module.css";
 
@@ -64,6 +65,8 @@ export default function PinMemoMap() {
   const [hiddenIds, setHiddenIds] = useState(loadHiddenCategoryIds);
   const [editing, setEditing] = useState<Editing | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  // ピンが重なったとき、最後に触ったピンを一番上に出す
+  const { bringToFront, zIndexOf, frontZIndex } = usePinFront();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const geolocateRef = useRef<GeolocateControlInstance>(null);
@@ -160,6 +163,7 @@ export default function PinMemoMap() {
           categoryIds: editing.categoryIds,
         });
         setPins((prev) => [...prev, created]);
+        bringToFront(created.pinId); // 新しく立てたピンは一番上に出す
       }
       setEditing(null);
     } catch (err) {
@@ -331,10 +335,13 @@ export default function PinMemoMap() {
             longitude={pin.lng}
             anchor="bottom-left"
             draggable={!saving}
+            style={{ zIndex: zIndexOf(pin.pinId) }}
             onClick={(e) => {
               e.originalEvent.stopPropagation(); // 地図の onClick（新規ピン）を発火させない
+              bringToFront(pin.pinId);
               openPin(pin);
             }}
+            onDragStart={() => bringToFront(pin.pinId)}
             onDragEnd={(e) => handleDragEnd(pin, e.lngLat.lat, e.lngLat.lng)}
           >
             <PinMemoPinIcon color={pinColor(pin)} title={pin.title} tooltip={pin.memo || undefined} />
@@ -342,7 +349,7 @@ export default function PinMemoMap() {
         ))}
 
         {editing && !editing.pin && (
-          <Marker latitude={editing.lat} longitude={editing.lng} anchor="bottom-left">
+          <Marker latitude={editing.lat} longitude={editing.lng} anchor="bottom-left" style={{ zIndex: frontZIndex }}>
             {/* 入力中のタイトルも、下書きのピンの上に出す */}
             <PinMemoPinIcon color={draftColor} title={editing.title.trim()} draft />
           </Marker>

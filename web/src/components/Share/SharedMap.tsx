@@ -7,6 +7,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { COMPACT_ATTRIBUTION, collapseAttribution } from "@/lib/attribution";
 import { DEFAULT_VIEW } from "@/lib/config";
 import type { SharedCategory, SharedPin } from "@/lib/sharedCategory";
+import { usePinFront } from "../PinMemo/usePinFront";
 import { useSheetHeight } from "../PinMemo/useSheetHeight";
 import PinMemoPinIcon from "../PinMemo/PinMemoPinIcon";
 import mapStyles from "../PinMemo/PinMemoMap.module.css";
@@ -41,6 +42,8 @@ export default function SharedMap({ category, pins }: Props) {
   const [initialViewState] = useState(() => initialView(pins));
   const [openPin, setOpenPin] = useState<SharedPin | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  // ピンが重なったとき、最後に触ったピンを一番上に出す
+  const { bringToFront, zIndexOf } = usePinFront();
   const sheetOpen = openPin !== null;
   const [sheetRef, sheetHeight] = useSheetHeight<HTMLDivElement>(sheetOpen);
 
@@ -78,8 +81,10 @@ export default function SharedMap({ category, pins }: Props) {
             latitude={pin.lat}
             longitude={pin.lng}
             anchor="bottom-left"
+            style={{ zIndex: zIndexOf(pin.pinId) }}
             onClick={(e) => {
               e.originalEvent.stopPropagation(); // 地図の onClick（シートを閉じる）を発火させない
+              bringToFront(pin.pinId);
               setOpenPin(pin);
             }}
           >
