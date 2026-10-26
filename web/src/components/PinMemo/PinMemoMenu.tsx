@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import type { Category } from "@/lib/api";
+import AboutContact from "../About/AboutContact";
 import AboutContent from "../About/AboutContent";
 import PinMemoSharePanel from "./PinMemoSharePanel";
 import styles from "./PinMemoMenu.module.css";
@@ -29,7 +30,7 @@ type Props = {
   onClose: () => void;
 };
 
-// 右上の ☰ から開くメニュー。カテゴリ一覧（ON/OFF・名前の変更・削除・共有）、新規カテゴリの追加、pins とは
+// 右上の ☰ から開くメニュー。カテゴリ一覧（ON/OFF・名前の変更・削除・共有）、新規カテゴリの追加、pins とは、お問い合わせ
 export default function PinMemoMenu({
   categories,
   hiddenIds,
@@ -48,21 +49,21 @@ export default function PinMemoMenu({
   // 共有画面を開いているカテゴリ
   const [sharingId, setSharingId] = useState<string | null>(null);
   const sharing = categories.find((c) => c.categoryId === sharingId) ?? null;
-  // 「pins とは」を開いているか
-  const [aboutOpen, setAboutOpen] = useState(false);
+  // 「pins とは」「お問い合わせ」のどちらかを開いているとき、その名前
+  const [page, setPage] = useState<"about" | "contact" | null>(null);
 
-  // Esc で閉じる（名前の変更中は変更だけを、共有画面と「pins とは」ではカテゴリ一覧に戻る）
+  // Esc で閉じる（名前の変更中は変更だけを、共有画面・「pins とは」・「お問い合わせ」ではカテゴリ一覧に戻る）
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || busy) return;
       if (renaming) setRenaming(null);
       else if (sharingId) setSharingId(null);
-      else if (aboutOpen) setAboutOpen(false);
+      else if (page) setPage(null);
       else onClose();
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [busy, renaming, sharingId, aboutOpen, onClose]);
+  }, [busy, renaming, sharingId, page, onClose]);
 
   const handleCreate = async (e: FormEvent) => {
     e.preventDefault();
@@ -108,13 +109,13 @@ export default function PinMemoMenu({
             onUnshare={onUnshare}
             onBack={() => setSharingId(null)}
           />
-        ) : aboutOpen ? (
+        ) : page ? (
           <section className={styles.section}>
-            <button type="button" className={styles.back} onClick={() => setAboutOpen(false)}>
+            <button type="button" className={styles.back} onClick={() => setPage(null)}>
               ← カテゴリ一覧に戻る
             </button>
-            <h3 className={styles.shareTitle}>pins とは</h3>
-            <AboutContent />
+            <h3 className={styles.shareTitle}>{page === "about" ? "pins とは" : "お問い合わせ"}</h3>
+            {page === "about" ? <AboutContent /> : <AboutContact />}
           </section>
         ) : (
           <>
@@ -218,8 +219,11 @@ export default function PinMemoMenu({
             </section>
 
             <section className={styles.section}>
-              <button type="button" className={styles.menuLink} onClick={() => setAboutOpen(true)} disabled={busy}>
+              <button type="button" className={styles.menuLink} onClick={() => setPage("about")} disabled={busy}>
                 pins とは
+              </button>
+              <button type="button" className={styles.menuLink} onClick={() => setPage("contact")} disabled={busy}>
+                お問い合わせ
               </button>
             </section>
           </>

@@ -1,23 +1,24 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import AboutContact from "../About/AboutContact";
 import AboutContent from "../About/AboutContent";
 import styles from "../PinMemo/PinMemoMenu.module.css";
 
-// 共有ページの ☰ メニュー。見るだけのページなので、中身は「pins とは」だけ
+// 共有ページの ☰ メニュー。見るだけのページなので、中身は「pins とは」と「お問い合わせ」だけ
 export default function SharedMenu({ onClose }: { onClose: () => void }) {
-  const [aboutOpen, setAboutOpen] = useState(false);
+  const [page, setPage] = useState<"about" | "contact" | null>(null);
 
-  // Esc で閉じる（「pins とは」を開いているときはメニューに戻る）
+  // Esc で閉じる（「pins とは」「お問い合わせ」を開いているときはメニューに戻る）
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
-      if (aboutOpen) setAboutOpen(false);
+      if (page) setPage(null);
       else onClose();
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [aboutOpen, onClose]);
+  }, [page, onClose]);
 
   return (
     <div className={styles.backdrop} onClick={onClose}>
@@ -37,18 +38,21 @@ export default function SharedMenu({ onClose }: { onClose: () => void }) {
           </button>
         </header>
 
-        {aboutOpen ? (
+        {page ? (
           <section className={styles.section}>
-            <button type="button" className={styles.back} onClick={() => setAboutOpen(false)}>
+            <button type="button" className={styles.back} onClick={() => setPage(null)}>
               ← メニューに戻る
             </button>
-            <h3 className={styles.shareTitle}>pins とは</h3>
-            <AboutContent shared />
+            <h3 className={styles.shareTitle}>{page === "about" ? "pins とは" : "お問い合わせ"}</h3>
+            {page === "about" ? <AboutContent shared /> : <AboutContact />}
           </section>
         ) : (
           <section className={styles.section}>
-            <button type="button" className={styles.menuLink} onClick={() => setAboutOpen(true)}>
+            <button type="button" className={styles.menuLink} onClick={() => setPage("about")}>
               pins とは
+            </button>
+            <button type="button" className={styles.menuLink} onClick={() => setPage("contact")}>
+              お問い合わせ
             </button>
           </section>
         )}

@@ -394,7 +394,7 @@ export default function PinMemoMap() {
             className={styles.titleInput}
             value={editing.title}
             onChange={(e) => setEditing({ ...editing, title: e.target.value })}
-            placeholder="タイトル（例：カレー屋さん）"
+            placeholder="タイトル（例：カフェ）"
             maxLength={TITLE_MAX_LENGTH}
             aria-label="タイトル"
             autoFocus
@@ -403,7 +403,7 @@ export default function PinMemoMap() {
             className={styles.memo}
             value={editing.memo}
             onChange={(e) => setEditing({ ...editing, memo: e.target.value })}
-            placeholder="メモ（例：気になるカフェ。土日は混むらしい）"
+            placeholder="メモ（例：気になっている。土日は混むらしい）"
             maxLength={MEMO_MAX_LENGTH}
             aria-label="メモ"
           />
