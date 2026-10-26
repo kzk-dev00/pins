@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { Category } from "@/lib/api";
-import styles from "./Menu.module.css";
+import styles from "./PinMemoMenu.module.css";
 
 type Props = {
   category: Category;
@@ -18,7 +18,7 @@ export function shareUrl(viewKey: string): string {
 }
 
 // メニューの中で開く、カテゴリの共有画面
-export default function SharePanel({ category, busy, onShare, onUnshare, onBack }: Props) {
+export default function PinMemoSharePanel({ category, busy, onShare, onUnshare, onBack }: Props) {
   const [copied, setCopied] = useState(false);
   const url = category.viewKey ? shareUrl(category.viewKey) : null;
 

@@ -38,14 +38,14 @@ npm run dev
 | ファイル | 内容 |
 |---|---|
 | `src/app/page.tsx` | トップページ。地図を表示するだけ |
-| `src/components/PinMemo/MapLoader.tsx` | 地図をブラウザでだけ読み込む（`ssr: false`） |
-| `src/components/PinMemo/Map.tsx` | 地図、ピン、メモ入力シート |
-| `src/components/PinMemo/Map.module.css` | 地図まわりのスタイル |
-| `src/components/PinMemo/Menu.tsx` | 右上の ☰ から開くメニュー（カテゴリ一覧・追加） |
-| `src/components/PinMemo/Menu.module.css` | メニューのスタイル |
-| `src/components/PinMemo/CategoryPicker.tsx` | メモのシートでカテゴリを選ぶ欄（複数可） |
-| `src/components/PinMemo/CategoryPicker.module.css` | カテゴリを選ぶ欄のスタイル |
-| `src/components/PinMemo/SharePanel.tsx` | メニューの中の共有画面（URL の作成・コピー・作り直し・共有をやめる） |
+| `src/components/PinMemo/PinMemoMapLoader.tsx` | 地図をブラウザでだけ読み込む（`ssr: false`） |
+| `src/components/PinMemo/PinMemoMap.tsx` | 地図、ピン、メモ入力シート |
+| `src/components/PinMemo/PinMemoMap.module.css` | 地図まわりのスタイル |
+| `src/components/PinMemo/PinMemoMenu.tsx` | 右上の ☰ から開くメニュー（カテゴリ一覧・追加） |
+| `src/components/PinMemo/PinMemoMenu.module.css` | メニューのスタイル |
+| `src/components/PinMemo/PinMemoCategoryPicker.tsx` | メモのシートでカテゴリを選ぶ欄（複数可） |
+| `src/components/PinMemo/PinMemoCategoryPicker.module.css` | カテゴリを選ぶ欄のスタイル |
+| `src/components/PinMemo/PinMemoSharePanel.tsx` | メニューの中の共有画面（URL の作成・コピー・作り直し・共有をやめる） |
 | `src/components/PinMemo/useSheetHeight.ts` | 下から出るシートの高さを測る（帰属表示を持ち上げるため） |
 | `src/app/share/[viewKey]/page.tsx` | 共有ページ。サーバー側でデータを取り、OGP のタグを出す |
 | `src/components/Share/SharedMapLoader.tsx` | 共有ページの地図をブラウザでだけ読み込む |

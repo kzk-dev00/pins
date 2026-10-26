@@ -17,10 +17,10 @@ import { COMPACT_ATTRIBUTION, collapseAttribution } from "@/lib/attribution";
 import { DEFAULT_VIEW } from "@/lib/config";
 import { loadHiddenCategoryIds, saveHiddenCategoryIds } from "@/lib/hiddenCategories";
 import { loadLastView, saveLastView } from "@/lib/lastView";
-import CategoryPicker from "./CategoryPicker";
-import Menu from "./Menu";
+import PinMemoCategoryPicker from "./PinMemoCategoryPicker";
+import PinMemoMenu from "./PinMemoMenu";
 import { useSheetHeight } from "./useSheetHeight";
-import styles from "./Map.module.css";
+import styles from "./PinMemoMap.module.css";
 
 // Worker は public/ から配信する（scripts/copy-maplibre-worker.mjs がコピーしている）
 setWorkerUrl("/maplibre-gl-worker.mjs");
@@ -363,7 +363,7 @@ export default function PinMemoMap() {
       )}
 
       {menuOpen && (
-        <Menu
+        <PinMemoMenu
           categories={categories}
           hiddenIds={hiddenSet}
           busy={saving}
@@ -400,7 +400,7 @@ export default function PinMemoMap() {
             maxLength={MEMO_MAX_LENGTH}
             autoFocus
           />
-          <CategoryPicker
+          <PinMemoCategoryPicker
             categories={categories}
             selectedIds={editing.categoryIds}
             onChange={(categoryIds) => setEditing({ ...editing, categoryIds })}

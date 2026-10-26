@@ -3,8 +3,8 @@
 import { useEffect, useState, type FormEvent } from "react";
 import type { Category } from "@/lib/api";
 import AboutContent from "../About/AboutContent";
-import SharePanel from "./SharePanel";
-import styles from "./Menu.module.css";
+import PinMemoSharePanel from "./PinMemoSharePanel";
+import styles from "./PinMemoMenu.module.css";
 
 const CATEGORY_NAME_MAX_LENGTH = 30;
 
@@ -30,7 +30,7 @@ type Props = {
 };
 
 // 右上の ☰ から開くメニュー。カテゴリ一覧（ON/OFF・名前の変更・削除・共有）、新規カテゴリの追加、pins とは
-export default function Menu({
+export default function PinMemoMenu({
   categories,
   hiddenIds,
   busy,
@@ -101,7 +101,7 @@ export default function Menu({
         )}
 
         {sharing ? (
-          <SharePanel
+          <PinMemoSharePanel
             category={sharing}
             busy={busy}
             onShare={onShare}

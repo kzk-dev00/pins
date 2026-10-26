@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { Category } from "@/lib/api";
-import styles from "./CategoryPicker.module.css";
+import styles from "./PinMemoCategoryPicker.module.css";
 
 type Props = {
   categories: Category[];
@@ -12,7 +12,7 @@ type Props = {
 };
 
 // メモのシートの「カテゴリ」欄。タップで一覧を開き、チェックボックスで選ぶ（複数可）
-export default function CategoryPicker({ categories, selectedIds, onChange, disabled }: Props) {
+export default function PinMemoCategoryPicker({ categories, selectedIds, onChange, disabled }: Props) {
   const [open, setOpen] = useState(false);
   const selected = categories.filter((c) => selectedIds.includes(c.categoryId));
 

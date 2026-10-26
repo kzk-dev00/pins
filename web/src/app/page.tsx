@@ -1,5 +1,5 @@
-import MapLoader from "@/components/PinMemo/MapLoader";
+import PinMemoMapLoader from "@/components/PinMemo/PinMemoMapLoader";
 
 export default function Home() {
-  return <MapLoader />;
+  return <PinMemoMapLoader />;
 }

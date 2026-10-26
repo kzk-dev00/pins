@@ -8,7 +8,7 @@ import { COMPACT_ATTRIBUTION, collapseAttribution } from "@/lib/attribution";
 import { DEFAULT_VIEW } from "@/lib/config";
 import type { SharedCategory, SharedPin } from "@/lib/sharedCategory";
 import { useSheetHeight } from "../PinMemo/useSheetHeight";
-import mapStyles from "../PinMemo/Map.module.css";
+import mapStyles from "../PinMemo/PinMemoMap.module.css";
 import SharedMenu from "./SharedMenu";
 import styles from "./Shared.module.css";
 

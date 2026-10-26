@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import AboutContent from "../About/AboutContent";
-import styles from "../PinMemo/Menu.module.css";
+import styles from "../PinMemo/PinMemoMenu.module.css";
 
 // 共有ページの ☰ メニュー。見るだけのページなので、中身は「pins とは」だけ
 export default function SharedMenu({ onClose }: { onClose: () => void }) {
