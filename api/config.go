@@ -8,7 +8,7 @@ import (
 // loadConfig は環境変数から上限を読む。設定がなければ初期値を使う。
 func loadConfig(getenv func(string) string) (Config, error) {
 	cfg := Config{
-		GuestMaxCategories:       3,
+		GuestMaxCategories:       5,
 		GuestMaxPinsPerCategory:  10,
 		MemberMaxCategories:      50,
 		MemberMaxPinsPerCategory: 1000,

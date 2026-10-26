@@ -39,17 +39,18 @@ type Editing = { pin: Pin | null; lat: number; lng: number; title: string; memo:
 type Status = "loading" | "ready" | "error";
 
 // StrictMode で effect が2回走っても、カテゴリが2つ作られないように1回にまとめる
-let initialLoad: Promise<{ categories: Category[]; pins: Pin[] }> | null = null;
+let initialLoad: Promise<{ categories: Category[]; maxCategories: number; pins: Pin[] }> | null = null;
 
 function loadInitialData() {
   initialLoad ??= (async () => {
-    let categories = await api.listCategories();
+    const list = await api.listCategories();
+    let categories = list.categories;
     if (categories.length === 0) {
       categories = [await api.createCategory({ name: DEFAULT_CATEGORY_NAME, color: nextCategoryColor(0) })];
     }
     // 全部のピンを1回で読み込み、カテゴリの ON/OFF は画面側で絞り込む
     const pins = await api.listPins();
-    return { categories, pins };
+    return { categories, maxCategories: list.maxCategories, pins };
   })();
   initialLoad.catch(() => {
     initialLoad = null; // 失敗したら、次に開いたときにやり直せるようにする
@@ -60,6 +61,8 @@ function loadInitialData() {
 export default function PinMemoMap() {
   const [status, setStatus] = useState<Status>("loading");
   const [categories, setCategories] = useState<Category[]>([]);
+  // 作れるカテゴリの上限（API が返す。ゲストと会員で違う）
+  const [maxCategories, setMaxCategories] = useState<number | null>(null);
   const [pins, setPins] = useState<Pin[]>([]);
   // 表示を OFF にしたカテゴリの ID（localStorage に保存）
   const [hiddenIds, setHiddenIds] = useState(loadHiddenCategoryIds);
@@ -91,6 +94,7 @@ export default function PinMemoMap() {
       .then((data) => {
         if (cancelled) return;
         setCategories(data.categories);
+        setMaxCategories(data.maxCategories ?? null); // 古い API は返さないので、そのときは上限なしとして扱う
         setPins(data.pins);
         setStatus("ready");
       })
@@ -370,6 +374,7 @@ export default function PinMemoMap() {
       {menuOpen && (
         <PinMemoMenu
           categories={categories}
+          maxCategories={maxCategories}
           hiddenIds={hiddenSet}
           busy={saving}
           error={error}

@@ -17,6 +17,8 @@ function isValidCategoryName(name: string): boolean {
 
 type Props = {
   categories: Category[];
+  // 作れるカテゴリの上限。上限に達したら「新規カテゴリの追加」を出さない（null は読み込み前）
+  maxCategories: number | null;
   hiddenIds: ReadonlySet<string>;
   busy: boolean;
   error: string | null;
@@ -33,6 +35,7 @@ type Props = {
 // 右上の ☰ から開くメニュー。カテゴリ一覧（ON/OFF・名前の変更・削除・共有）、新規カテゴリの追加、pins とは、お問い合わせ
 export default function PinMemoMenu({
   categories,
+  maxCategories,
   hiddenIds,
   busy,
   error,
@@ -45,6 +48,7 @@ export default function PinMemoMenu({
   onClose,
 }: Props) {
   const [newName, setNewName] = useState("");
+  const canAddCategory = maxCategories === null || categories.length < maxCategories;
   const [renaming, setRenaming] = useState<{ categoryId: string; name: string } | null>(null);
   // 共有画面を開いているカテゴリ
   const [sharingId, setSharingId] = useState<string | null>(null);
@@ -194,29 +198,31 @@ export default function PinMemoMenu({
               )}
             </section>
 
-            <section className={styles.section}>
-              <h3 className={styles.sectionTitle}>新規カテゴリの追加</h3>
-              <form className={styles.createForm} onSubmit={handleCreate}>
-                <input
-                  className={styles.input}
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  placeholder="例：厚木ランチ"
-                  maxLength={CATEGORY_NAME_MAX_LENGTH}
-                  aria-label="新しいカテゴリ名"
-                />
-                <button
-                  type="submit"
-                  className={`${styles.button} ${styles.primary}`}
-                  disabled={busy || !isValidCategoryName(newName)}
-                >
-                  追加
-                </button>
-              </form>
-              <p className={styles.counter}>
-                {[...newName.trim()].length}/{CATEGORY_NAME_MAX_LENGTH}
-              </p>
-            </section>
+            {canAddCategory && (
+              <section className={styles.section}>
+                <h3 className={styles.sectionTitle}>新規カテゴリの追加</h3>
+                <form className={styles.createForm} onSubmit={handleCreate}>
+                  <input
+                    className={styles.input}
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    placeholder="例：厚木ランチ"
+                    maxLength={CATEGORY_NAME_MAX_LENGTH}
+                    aria-label="新しいカテゴリ名"
+                  />
+                  <button
+                    type="submit"
+                    className={`${styles.button} ${styles.primary}`}
+                    disabled={busy || !isValidCategoryName(newName)}
+                  >
+                    追加
+                  </button>
+                </form>
+                <p className={styles.counter}>
+                  {[...newName.trim()].length}/{CATEGORY_NAME_MAX_LENGTH}
+                </p>
+              </section>
+            )}
 
             <section className={styles.section}>
               <button type="button" className={styles.menuLink} onClick={() => setPage("about")} disabled={busy}>

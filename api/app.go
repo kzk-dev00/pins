@@ -196,7 +196,9 @@ func (a *App) listCategories(ctx context.Context, r *request) (events.APIGateway
 	for _, c := range cats {
 		out = append(out, c.toJSON())
 	}
-	return jsonResponse(http.StatusOK, map[string]any{"categories": out})
+	// 画面が「新規カテゴリの追加」を出すかどうかを決められるよう、その人の上限も返す
+	maxCategories, _ := a.limits(r.owner)
+	return jsonResponse(http.StatusOK, map[string]any{"categories": out, "maxCategories": maxCategories})
 }
 
 func (a *App) createCategory(ctx context.Context, r *request) (events.APIGatewayV2HTTPResponse, error) {

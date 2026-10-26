@@ -40,7 +40,7 @@ Next.js → API Gateway（HTTP API, ANY /{proxy+}） → Lambda（このコー�
 |---|---|---|---|
 | `CATEGORIES_TABLE` | ✓ | カテゴリのテーブル名（例：`pin-memo-dev-categories`） | |
 | `PINS_TABLE` | ✓ | ピンのテーブル名（例：`pin-memo-dev-pins`） | |
-| `GUEST_MAX_CATEGORIES` | | ゲストが作れるカテゴリの数 | 3 |
+| `GUEST_MAX_CATEGORIES` | | ゲストが作れるカテゴリの数 | 5 |
 | `GUEST_MAX_PINS` | | ゲストが1カテゴリに立てられるピンの数 | 10 |
 | `MEMBER_MAX_CATEGORIES` | | 会員が作れるカテゴリの数 | 50 |
 | `MEMBER_MAX_PINS` | | 会員が1カテゴリに立てられるピンの数 | 1000 |

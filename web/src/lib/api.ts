@@ -72,9 +72,9 @@ export function errorMessage(err: unknown): string {
   return err instanceof ApiError ? err.message : "エラーが発生しました";
 }
 
-export async function listCategories(): Promise<Category[]> {
-  const data = await request<{ categories: Category[] }>("GET", "/categories");
-  return data.categories;
+// maxCategories は、その人が作れるカテゴリの上限（ゲストと会員で違う）
+export function listCategories(): Promise<{ categories: Category[]; maxCategories: number }> {
+  return request("GET", "/categories");
 }
 
 export function createCategory(input: { name: string; color?: string }): Promise<Category> {

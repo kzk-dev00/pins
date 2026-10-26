@@ -30,7 +30,7 @@ export default function AboutContent({ shared = false }: Props) {
         <li>データは、お使いの端末のブラウザに保存され他の端末やブラウザからは見られません。</li>
         <li>ブラウザのデータを消すと、見られなくなります。</li>
         <li>しばらく（30日ほど）使わないと自動で消えます。</li>
-        <li>カテゴリは3つまで、1つのカテゴリにピンは10件まで作れます。</li>
+        <li>カテゴリは5つまで、1つのカテゴリにピンは10件まで作れます。</li>
       </ul>
 
       <p className={styles.credit}>

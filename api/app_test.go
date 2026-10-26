@@ -667,7 +667,7 @@ func TestLoadConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg != (Config{3, 10, 50, 1000}) {
+	if cfg != (Config{5, 10, 50, 1000}) {
 		t.Fatalf("初期値が違う: %+v", cfg)
 	}
 
@@ -675,7 +675,7 @@ func TestLoadConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.GuestMaxPinsPerCategory != 5 || cfg.MemberMaxCategories != 100 || cfg.GuestMaxCategories != 3 {
+	if cfg.GuestMaxPinsPerCategory != 5 || cfg.MemberMaxCategories != 100 || cfg.GuestMaxCategories != 5 {
 		t.Fatalf("環境変数が反映されていない: %+v", cfg)
 	}
 
@@ -765,5 +765,20 @@ func TestPinWithoutTitleAttribute(t *testing.T) {
 	pins := e.listPins(as)
 	if len(pins) != 1 || pins[0].Title != "" {
 		t.Fatalf("古いピンが返らない、またはタイトルが空でない: %+v", pins)
+	}
+}
+
+func TestListCategoriesReturnsLimit(t *testing.T) {
+	e := newTestEnv(t)
+	var out struct {
+		MaxCategories int `json:"maxCategories"`
+	}
+	e.do(guest(tokenA), http.MethodGet, "/categories", "").expect(http.StatusOK).decode(&out)
+	if out.MaxCategories != testConfig.GuestMaxCategories {
+		t.Fatalf("ゲストの maxCategories = %d, want %d", out.MaxCategories, testConfig.GuestMaxCategories)
+	}
+	e.do(member("cognito-sub-1"), http.MethodGet, "/categories", "").expect(http.StatusOK).decode(&out)
+	if out.MaxCategories != testConfig.MemberMaxCategories {
+		t.Fatalf("会員の maxCategories = %d, want %d", out.MaxCategories, testConfig.MemberMaxCategories)
 	}
 }
