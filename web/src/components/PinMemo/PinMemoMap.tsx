@@ -17,6 +17,7 @@ import { COMPACT_ATTRIBUTION, collapseAttribution } from "@/lib/attribution";
 import { DEFAULT_VIEW } from "@/lib/config";
 import { loadHiddenCategoryIds, saveHiddenCategoryIds } from "@/lib/hiddenCategories";
 import { loadLastView, saveLastView } from "@/lib/lastView";
+import { SAMPLE_PINS, offsetPosition } from "@/lib/samplePins";
 import PinMemoCategoryPicker from "./PinMemoCategoryPicker";
 import PinMemoMenu from "./PinMemoMenu";
 import PinMemoPinIcon from "./PinMemoPinIcon";
@@ -28,8 +29,8 @@ import styles from "./PinMemoMap.module.css";
 setWorkerUrl("/maplibre-gl-worker.mjs");
 
 const MAP_STYLE = "https://tiles.openfreemap.org/styles/liberty";
-// 初めて開いたとき、カテゴリがなければ自動で作る
-const DEFAULT_CATEGORY_NAME = "マイピン";
+// 初めて開いたとき、カテゴリがなければ自動で作り、見本のピンを入れる
+const DEFAULT_CATEGORY_NAME = "サンプルカテゴリ";
 const TITLE_MAX_LENGTH = 20;
 const MEMO_MAX_LENGTH = 200;
 
@@ -39,23 +40,48 @@ type Editing = { pin: Pin | null; lat: number; lng: number; title: string; memo:
 type Status = "loading" | "ready" | "error";
 
 // StrictMode で effect が2回走っても、カテゴリが2つ作られないように1回にまとめる
-let initialLoad: Promise<{ categories: Category[]; maxCategories: number; pins: Pin[] }> | null = null;
+// sampleCategoryId は、今回カテゴリを自動で作ったときだけ入る（見本のピンをここに入れる）
+let initialLoad: Promise<{
+  categories: Category[];
+  maxCategories: number;
+  pins: Pin[];
+  sampleCategoryId: string | null;
+}> | null = null;
 
 function loadInitialData() {
   initialLoad ??= (async () => {
     const list = await api.listCategories();
     let categories = list.categories;
+    let sampleCategoryId: string | null = null;
     if (categories.length === 0) {
       categories = [await api.createCategory({ name: DEFAULT_CATEGORY_NAME, color: nextCategoryColor(0) })];
+      sampleCategoryId = categories[0].categoryId;
     }
     // 全部のピンを1回で読み込み、カテゴリの ON/OFF は画面側で絞り込む
     const pins = await api.listPins();
-    return { categories, maxCategories: list.maxCategories, pins };
+    return { categories, maxCategories: list.maxCategories, pins, sampleCategoryId };
   })();
   initialLoad.catch(() => {
     initialLoad = null; // 失敗したら、次に開いたときにやり直せるようにする
   });
   return initialLoad;
+}
+
+// 見本のピンを作るのは1回だけ（StrictMode で effect が2回走っても二重に作らない）
+let samplePinsStarted = false;
+
+// 見本のピンを順に作り、できたものから渡す。途中で失敗したら、そこでやめる（作り直しはしない）
+async function createSamplePins(categoryId: string, base: { lat: number; lng: number }, onCreated: (pin: Pin) => void) {
+  if (samplePinsStarted) return;
+  samplePinsStarted = true;
+  try {
+    for (const sample of SAMPLE_PINS) {
+      const { lat, lng } = offsetPosition(base.lat, base.lng, sample.north, sample.east);
+      onCreated(await api.createPin({ lat, lng, title: sample.title, memo: sample.memo, categoryIds: [categoryId] }));
+    }
+  } catch {
+    // 見本がそろわなくても使うのには困らないので、エラーは出さない
+  }
 }
 
 export default function PinMemoMap() {
@@ -75,6 +101,9 @@ export default function PinMemoMap() {
   const geolocateRef = useRef<GeolocateControlInstance>(null);
   // 前回見ていた位置。初回（保存なし）は null
   const [lastView] = useState(loadLastView);
+  // 見本のピンを入れるカテゴリ（今回自動で作ったときだけ）と、見本を立てる基準の位置
+  const [sampleCategoryId, setSampleCategoryId] = useState<string | null>(null);
+  const [sampleBase, setSampleBase] = useState<{ lat: number; lng: number } | null>(null);
   // シートの高さ。開いているあいだ、右下の帰属表示をこの分だけ持ち上げてボタンと重ならないようにする
   const sheetOpen = editing !== null;
   const [sheetRef, sheetHeight] = useSheetHeight<HTMLFormElement>(sheetOpen);
@@ -96,6 +125,7 @@ export default function PinMemoMap() {
         setCategories(data.categories);
         setMaxCategories(data.maxCategories ?? null); // 古い API は返さないので、そのときは上限なしとして扱う
         setPins(data.pins);
+        setSampleCategoryId(data.sampleCategoryId);
         setStatus("ready");
       })
       .catch((err) => {
@@ -107,6 +137,15 @@ export default function PinMemoMap() {
       cancelled = true;
     };
   }, []);
+
+  // カテゴリを自動で作ったときは、最初の位置が決まったら、そのまわりに見本のピンを立てる
+  useEffect(() => {
+    if (!sampleCategoryId || !sampleBase) return;
+    createSamplePins(sampleCategoryId, sampleBase, (pin) => setPins((prev) => [...prev, pin]));
+  }, [sampleCategoryId, sampleBase]);
+
+  // 見本を立てる基準の位置を決める（最初の1回だけ）
+  const decideSampleBase = (lat: number, lng: number) => setSampleBase((prev) => prev ?? { lat, lng });
 
   // Esc でシートを閉じる（メニューを開いているときはメニュー側で閉じる）
   useEffect(() => {
@@ -319,7 +358,12 @@ export default function PinMemoMap() {
         onLoad={(e) => {
           collapseAttribution(e); // 帰属表示は ⓘ だけにたたんでおき、押したときだけ出す
           // 初回だけ自動で現在地へ移動する。2回目以降は右上のボタンを押したときだけ
-          if (!lastView) geolocateRef.current?.trigger();
+          const triggered = !lastView && "geolocation" in navigator && geolocateRef.current?.trigger();
+          // 現在地へ移動しないときは、今の地図の中心（最後に見ていた位置か初期位置）を見本の基準にする
+          if (!triggered) {
+            const view = lastView ?? DEFAULT_VIEW;
+            decideSampleBase(view.latitude, view.longitude);
+          }
         }}
         onMoveEnd={(e) => saveLastView(e.viewState)}
       >
@@ -330,6 +374,9 @@ export default function PinMemoMap() {
           positionOptions={{ enableHighAccuracy: true }}
           trackUserLocation
           showUserLocation
+          // 見本の基準：現在地が取れたらそこ、取れなかったら（許可しない・時間切れなど）初期位置
+          onGeolocate={(e) => decideSampleBase(e.coords.latitude, e.coords.longitude)}
+          onError={() => decideSampleBase(DEFAULT_VIEW.latitude, DEFAULT_VIEW.longitude)}
         />
 
         {visiblePins.map((pin) => (
