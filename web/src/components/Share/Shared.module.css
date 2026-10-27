@@ -39,9 +39,19 @@
   min-width: 0;
   margin: 0;
   font-size: 15px;
+  position: relative;
   overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* 見切れたときは末尾に半角の中黒3つを出す（text-overflow に文字列を指定できるのは Firefox だけなので重ねて出す） */
+.title[data-clipped]::after {
+  content: "･･･";
+  position: absolute;
+  top: 0;
+  right: 0;
+  padding-left: 2px;
+  background: var(--surface);
 }
 
 .count {

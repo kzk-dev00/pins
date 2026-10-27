@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import Map, { GeolocateControl, Marker, NavigationControl } from "react-map-gl/maplibre";
 import { setWorkerUrl, type LngLatBoundsLike } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -46,6 +46,17 @@ export default function SharedMap({ category, pins }: Props) {
   const { bringToFront, zIndexOf } = usePinFront();
   const sheetOpen = openPin !== null;
   const [sheetRef, sheetHeight] = useSheetHeight<HTMLDivElement>(sheetOpen);
+  // 見出しが見切れているか（見切れたら末尾に「･･･」を出す）。画面の幅が変わったら測り直す
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const [titleClipped, setTitleClipped] = useState(false);
+
+  useEffect(() => {
+    const el = titleRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(() => setTitleClipped(el.scrollWidth > el.clientWidth));
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   // Esc でシートを閉じる（メニューを開いているときはメニュー側で閉じる）
   useEffect(() => {
@@ -109,7 +120,9 @@ export default function SharedMap({ category, pins }: Props) {
 
       <header className={styles.header}>
         <span className={styles.dot} style={{ background: category.color }} aria-hidden />
-        <h1 className={styles.title}>{category.name}</h1>
+        <h1 ref={titleRef} className={styles.title} data-clipped={titleClipped || undefined}>
+          共有：{category.name}
+        </h1>
         <span className={styles.count}>{pins.length}件</span>
       </header>
 
