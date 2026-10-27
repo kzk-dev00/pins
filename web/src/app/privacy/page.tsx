@@ -71,6 +71,9 @@ export default function PrivacyPage() {
         までご連絡ください。
       </p>
 
+      <h2 className={styles.heading}>9. 免責事項</h2>
+      <p>本アプリは個人開発のものです。利用により生じたいかなる損害についても、作成者は責任を負いかねますので、あらかじめご了承ください。</p>
+
       <h2 className={styles.heading}>10. 改定</h2>
       <p>本ポリシーは、必要に応じて改定することがあります。改定した場合は、このページでお知らせします。</p>
 
