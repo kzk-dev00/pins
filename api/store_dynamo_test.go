@@ -7,7 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
 
-// DynamoDB に保存する形を確かめる（AWS にはつながない）。
+// DynamoDB に保存する形を確かめる（AWS には繋げない）。
 func TestCategoryItemShape(t *testing.T) {
 	item, err := attributevalue.MarshalMap(Category{OwnerID: "g_x", CategoryID: "c", Name: "n", Color: "#000000", SortOrder: 1000})
 	if err != nil {

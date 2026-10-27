@@ -52,15 +52,11 @@ const (
 	maxMemoLen         = 200
 )
 
-// normalizeCategoryName は前後の空白を消す。
-func normalizeCategoryName(name string) string {
-	return strings.TrimSpace(name)
-}
-
-// validCategoryName は1〜30文字（文字数で数える）かを確かめる。normalizeCategoryName のあとに使う。
-func validCategoryName(name string) bool {
+// normalizeCategoryName は前後の空白を消し、1〜30文字かを確かめる。
+func normalizeCategoryName(name string) (string, bool) {
+	name = strings.TrimSpace(name)
 	n := utf8.RuneCountInString(name)
-	return n >= 1 && n <= maxCategoryNameLen
+	return name, n >= 1 && n <= maxCategoryNameLen
 }
 
 // normalizeColor は #RRGGBB の形かを確かめ、大文字にそろえる。
@@ -81,10 +77,7 @@ func validMemo(memo string) bool {
 	return utf8.RuneCountInString(memo) <= maxMemoLen
 }
 
-func validLat(lat float64) bool {
-	return lat >= -90 && lat <= 90
-}
-
-func validLng(lng float64) bool {
-	return lng >= -180 && lng <= 180
+// validCoord は緯度経度が -limit〜limit の範囲かを確かめる（緯度は90、経度は180を渡す）。
+func validCoord(v, limit float64) bool {
+	return v >= -limit && v <= limit
 }
