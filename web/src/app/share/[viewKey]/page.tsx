@@ -43,14 +43,14 @@ async function SharedContent({ viewKey }: { viewKey: string }) {
   if (result.status === "not_found") {
     return (
       <div className={styles.message} role="alert">
-        共有されたカテゴリが見つかりません。共有が停止されたか、期限が切れた可能性があります。
+        共有されたカテゴリが見つかりません。共有が停止されたか期限が切れた可能性があります。
       </div>
     );
   }
   if (result.status === "error") {
     return (
       <div className={styles.message} role="alert">
-        読み込めませんでした。時間をおいて、もう一度開いてください。
+        読み込めませんでした。時間をおいてもう一度開いてください。
       </div>
     );
   }

@@ -6,7 +6,7 @@ const CONTACT_EMAIL = "pins.servicejp@gmail.com";
 export default function AboutContact() {
   return (
     <div className={styles.about}>
-      <p>ご意見・不具合のご報告などは、下記のアドレスまでメールでお送りください。</p>
+      <p>ご意見・不具合のご報告などは下記のアドレスまでメールでお送りください。</p>
       <a className={styles.mail} href={`mailto:${CONTACT_EMAIL}`}>
         {CONTACT_EMAIL}
       </a>

@@ -6,11 +6,11 @@ import AboutContact from "../About/AboutContact";
 import AboutContent from "../About/AboutContent";
 import styles from "../PinMemo/PinMemoMenu.module.css";
 
-// 共有ページの ☰ メニュー。見るだけのページなので、中身は「pins とは」「お問い合わせ」「プライバシーポリシー」だけ
+// 共有ページの ☰ メニュー。見るだけのページなので、中身は「pinsとは」「お問い合わせ」「プライバシーポリシー」だけ
 export default function SharedMenu({ onClose }: { onClose: () => void }) {
   const [page, setPage] = useState<"about" | "contact" | null>(null);
 
-  // Esc で閉じる（「pins とは」「お問い合わせ」を開いているときはメニューに戻る）
+  // Esc で閉じる（「pinsとは」「お問い合わせ」を開いているときはメニューに戻る）
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
@@ -44,13 +44,13 @@ export default function SharedMenu({ onClose }: { onClose: () => void }) {
             <button type="button" className={styles.back} onClick={() => setPage(null)}>
               ← 戻る
             </button>
-            <h3 className={styles.shareTitle}>{page === "about" ? "pins とは" : "お問い合わせ"}</h3>
+            <h3 className={styles.shareTitle}>{page === "about" ? "pinsとは" : "お問い合わせ"}</h3>
             {page === "about" ? <AboutContent shared /> : <AboutContact />}
           </section>
         ) : (
           <section className={styles.section}>
             <button type="button" className={styles.menuLink} onClick={() => setPage("about")}>
-              pins とは
+              pinsとは
             </button>
             <button type="button" className={styles.menuLink} onClick={() => setPage("contact")}>
               お問い合わせ

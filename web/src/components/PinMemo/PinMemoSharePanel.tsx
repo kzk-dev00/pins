@@ -34,7 +34,7 @@ export default function PinMemoSharePanel({ category, busy, onShare, onUnshare, 
       setCopied(true);
     } catch {
       setCopied(false);
-      window.prompt("コピーできませんでした。この URL を選んでコピーしてください", url);
+      window.prompt("コピーできませんでした。このURLを選んでコピーしてください", url);
     }
   };
 
@@ -55,10 +55,10 @@ export default function PinMemoSharePanel({ category, busy, onShare, onUnshare, 
 
       {url ? (
         <>
-          <input className={styles.input} value={url} readOnly aria-label="共有 URL" onFocus={(e) => e.target.select()} />
+          <input className={styles.input} value={url} readOnly aria-label="共有URL" onFocus={(e) => e.target.select()} />
           <div className={styles.actions}>
             <button type="button" className={`${styles.button} ${styles.primary}`} onClick={handleCopy} disabled={busy}>
-              {copied ? "コピーしました" : "URL をコピー"}
+              {copied ? "コピーしました" : "URLをコピー"}
             </button>
           </div>
           <div className={styles.actions}>
@@ -75,7 +75,7 @@ export default function PinMemoSharePanel({ category, busy, onShare, onUnshare, 
       ) : (
         <div className={styles.actions}>
           <button type="button" className={`${styles.button} ${styles.primary}`} onClick={handleCreate} disabled={busy}>
-            共有 URL を作る
+            共有URLを作る
           </button>
         </div>
       )}

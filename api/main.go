@@ -18,7 +18,7 @@ func main() {
 	categoriesTable := os.Getenv("CATEGORIES_TABLE")
 	pinsTable := os.Getenv("PINS_TABLE")
 	if categoriesTable == "" || pinsTable == "" {
-		log.Fatal("環境変数 CATEGORIES_TABLE と PINS_TABLE を設定してください")
+		log.Fatal("環境変数CATEGORIES_TABLEとPINS_TABLEを設定してください")
 	}
 
 	// 認証情報とリージョンは Lambda の実行ロールと環境から自動で読み込まれる

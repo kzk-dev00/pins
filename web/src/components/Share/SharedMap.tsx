@@ -31,7 +31,7 @@ function initialView(pins: SharedPin[]) {
     [Math.min(...lngs), Math.min(...lats)],
     [Math.max(...lngs), Math.max(...lats)],
   ];
-  // 上はカテゴリ名、右は地図のボタンがあるので、その分の余白を多めに取る
+  // 上はカテゴリ名、右は地図のボタンがあるのでその分の余白を多めに取る
   return { bounds, fitBoundsOptions: { padding: { top: 90, bottom: 40, left: 40, right: 70 }, maxZoom: 16 } };
 }
 
@@ -42,7 +42,7 @@ export default function SharedMap({ category, pins }: Props) {
   const [initialViewState] = useState(() => initialView(pins));
   const [openPin, setOpenPin] = useState<SharedPin | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
-  // ピンが重なったとき、最後に触ったピンを一番上に出す
+  // ピンが重なったとき最後に触ったピンを一番上に出す
   const { bringToFront, zIndexOf } = usePinFront();
   const sheetOpen = openPin !== null;
   const [sheetRef, sheetHeight] = useSheetHeight<HTMLDivElement>(sheetOpen);
@@ -58,7 +58,7 @@ export default function SharedMap({ category, pins }: Props) {
     return () => observer.disconnect();
   }, []);
 
-  // Esc でシートを閉じる（メニューを開いているときはメニュー側で閉じる）
+  // Escでシートを閉じる（メニューを開いているときはメニュー側で閉じる）
   useEffect(() => {
     if (!sheetOpen || menuOpen) return;
     const onKeyDown = (e: KeyboardEvent) => {
@@ -94,7 +94,7 @@ export default function SharedMap({ category, pins }: Props) {
             anchor="bottom-left"
             style={{ zIndex: zIndexOf(pin.pinId) }}
             onClick={(e) => {
-              e.originalEvent.stopPropagation(); // 地図の onClick（シートを閉じる）を発火させない
+              e.originalEvent.stopPropagation(); // 地図のonClick（シートを閉じる）を発火させない
               bringToFront(pin.pinId);
               setOpenPin(pin);
             }}

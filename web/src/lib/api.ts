@@ -41,7 +41,7 @@ const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   if (!BASE_URL) {
-    throw new ApiError(0, "config", "API の URL が設定されていません（NEXT_PUBLIC_API_BASE_URL）");
+    throw new ApiError(0, "config", "APIのURLが設定されていません（NEXT_PUBLIC_API_BASE_URL）");
   }
 
   const headers: Record<string, string> = { "x-guest-token": getGuestToken() };

@@ -168,7 +168,7 @@ func (in *categoryInput) validate() error {
 	if in.Color != nil {
 		color, ok := normalizeColor(*in.Color)
 		if !ok {
-			return invalidInput("色は #RRGGBB の形式で指定してください")
+			return invalidInput("色は#RRGGBBの形式で指定してください")
 		}
 		in.Color = &color
 	}
@@ -371,10 +371,10 @@ type pinInput struct {
 
 func (in *pinInput) validate() error {
 	if in.Lat != nil && !validCoord(*in.Lat, 90) {
-		return invalidInput("緯度は -90〜90 の範囲で指定してください")
+		return invalidInput("緯度は-90〜90の範囲で指定してください")
 	}
 	if in.Lng != nil && !validCoord(*in.Lng, 180) {
-		return invalidInput("経度は -180〜180 の範囲で指定してください")
+		return invalidInput("経度は-180〜180の範囲で指定してください")
 	}
 	if in.Title != nil {
 		title, ok := normalizePinTitle(*in.Title)

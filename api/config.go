@@ -29,7 +29,7 @@ func loadConfig(getenv func(string) string) (Config, error) {
 		}
 		n, err := strconv.Atoi(v)
 		if err != nil || n <= 0 {
-			return Config{}, fmt.Errorf("環境変数 %s は1以上の整数にしてください（今の値：%q）", f.name, v)
+			return Config{}, fmt.Errorf("環境変数%sは1以上の整数にしてください（今の値：%q）", f.name, v)
 		}
 		*f.dst = n
 	}

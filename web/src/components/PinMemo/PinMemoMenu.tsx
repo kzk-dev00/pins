@@ -33,7 +33,7 @@ type Props = {
   onClose: () => void;
 };
 
-// 右上の ☰ から開くメニュー。カテゴリ一覧（ON/OFF・名前の変更・削除・共有）、新規カテゴリの追加、pins とは、お問い合わせ
+// 右上の ☰ から開くメニュー。カテゴリ一覧（ON/OFF・名前の変更・削除・共有）、新規カテゴリの追加、pinsとは、お問い合わせ
 export default function PinMemoMenu({
   categories,
   maxCategories,
@@ -54,10 +54,10 @@ export default function PinMemoMenu({
   // 共有画面を開いているカテゴリ
   const [sharingId, setSharingId] = useState<string | null>(null);
   const sharing = categories.find((c) => c.categoryId === sharingId) ?? null;
-  // 「pins とは」「お問い合わせ」のどちらかを開いているとき、その名前
+  // 「pinsとは」「お問い合わせ」のどちらかを開いているとき、その名前
   const [page, setPage] = useState<"about" | "contact" | null>(null);
 
-  // Esc で閉じる（名前の変更中は変更だけを、共有画面・「pins とは」・「お問い合わせ」ではカテゴリ一覧に戻る）
+  // Esc で閉じる（名前の変更中は変更だけを、共有画面・「pinsとは」・「お問い合わせ」ではカテゴリ一覧に戻る）
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || busy) return;
@@ -119,7 +119,7 @@ export default function PinMemoMenu({
             <button type="button" className={styles.back} onClick={() => setPage(null)}>
               ← 戻る
             </button>
-            <h3 className={styles.shareTitle}>{page === "about" ? "pins とは" : "お問い合わせ"}</h3>
+            <h3 className={styles.shareTitle}>{page === "about" ? "pinsとは" : "お問い合わせ"}</h3>
             {page === "about" ? <AboutContent /> : <AboutContact />}
           </section>
         ) : (
@@ -207,7 +207,7 @@ export default function PinMemoMenu({
                     className={styles.input}
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
-                    placeholder="例：厚木ランチ"
+                    placeholder="例：ランチ"
                     maxLength={CATEGORY_NAME_MAX_LENGTH}
                     aria-label="新しいカテゴリ名"
                   />
@@ -227,7 +227,7 @@ export default function PinMemoMenu({
 
             <section className={styles.section}>
               <button type="button" className={styles.menuLink} onClick={() => setPage("about")} disabled={busy}>
-                pins とは
+                pinsとは
               </button>
               <button type="button" className={styles.menuLink} onClick={() => setPage("contact")} disabled={busy}>
                 お問い合わせ
