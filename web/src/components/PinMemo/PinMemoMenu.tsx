@@ -1,20 +1,12 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import type { Category } from "@/lib/api";
-import AboutContact from "../About/AboutContact";
-import AboutContent from "../About/AboutContent";
+import { CATEGORY_NAME_MAX_LENGTH, isValidCategoryName, textLength } from "@/lib/limits";
+import { AboutMenuLinks, AboutMenuPage, type AboutPage } from "../About/AboutMenu";
 import PinMemoSharePanel from "./PinMemoSharePanel";
+import { useEscapeKey } from "./useEscapeKey";
 import styles from "./PinMemoMenu.module.css";
-
-const CATEGORY_NAME_MAX_LENGTH = 30;
-
-// API と同じく、前後の空白を除いて1〜30文字（文字数はコードポイントで数える）
-function isValidCategoryName(name: string): boolean {
-  const length = [...name.trim()].length;
-  return length >= 1 && length <= CATEGORY_NAME_MAX_LENGTH;
-}
 
 type Props = {
   categories: Category[];
@@ -55,20 +47,16 @@ export default function PinMemoMenu({
   const [sharingId, setSharingId] = useState<string | null>(null);
   const sharing = categories.find((c) => c.categoryId === sharingId) ?? null;
   // 「pinsとは」「お問い合わせ」のどちらかを開いているとき、その名前
-  const [page, setPage] = useState<"about" | "contact" | null>(null);
+  const [page, setPage] = useState<AboutPage>(null);
 
   // Esc で閉じる（名前の変更中は変更だけを、共有画面・「pinsとは」・「お問い合わせ」ではカテゴリ一覧に戻る）
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== "Escape" || busy) return;
-      if (renaming) setRenaming(null);
-      else if (sharingId) setSharingId(null);
-      else if (page) setPage(null);
-      else onClose();
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [busy, renaming, sharingId, page, onClose]);
+  useEscapeKey(() => {
+    if (busy) return;
+    if (renaming) setRenaming(null);
+    else if (sharingId) setSharingId(null);
+    else if (page) setPage(null);
+    else onClose();
+  });
 
   const handleCreate = async (e: FormEvent) => {
     e.preventDefault();
@@ -115,13 +103,7 @@ export default function PinMemoMenu({
             onBack={() => setSharingId(null)}
           />
         ) : page ? (
-          <section className={styles.section}>
-            <button type="button" className={styles.back} onClick={() => setPage(null)}>
-              ← 戻る
-            </button>
-            <h3 className={styles.shareTitle}>{page === "about" ? "pinsとは" : "お問い合わせ"}</h3>
-            {page === "about" ? <AboutContent /> : <AboutContact />}
-          </section>
+          <AboutMenuPage page={page} onBack={() => setPage(null)} />
         ) : (
           <>
             <section className={styles.section}>
@@ -220,22 +202,12 @@ export default function PinMemoMenu({
                   </button>
                 </form>
                 <p className={styles.counter}>
-                  {[...newName.trim()].length}/{CATEGORY_NAME_MAX_LENGTH}
+                  {textLength(newName)}/{CATEGORY_NAME_MAX_LENGTH}
                 </p>
               </section>
             )}
 
-            <section className={styles.section}>
-              <button type="button" className={styles.menuLink} onClick={() => setPage("about")} disabled={busy}>
-                pinsとは
-              </button>
-              <button type="button" className={styles.menuLink} onClick={() => setPage("contact")} disabled={busy}>
-                お問い合わせ
-              </button>
-              <Link className={styles.menuLink} href="/privacy">
-                プライバシーポリシー
-              </Link>
-            </section>
+            <AboutMenuLinks onOpen={setPage} disabled={busy} />
           </>
         )}
       </aside>

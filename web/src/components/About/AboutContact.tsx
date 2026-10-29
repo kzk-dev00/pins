@@ -1,6 +1,5 @@
+import { CONTACT_EMAIL } from "@/lib/contact";
 import styles from "./About.module.css";
-
-const CONTACT_EMAIL = "pins.servicejp@gmail.com";
 
 // 「お問い合わせ」の本文。アドレスを押すと、端末のメールアプリが開く（mailto: のリンク）
 export default function AboutContact() {

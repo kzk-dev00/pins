@@ -1,6 +1,8 @@
 // 共有ページ（/share/[viewKey]）のデータを API から取る。サーバー側（ページと OGP のメタデータ）で使う。
 // 見る人はゲストトークンを持っていなくてよいので、トークンは付けない。
 
+import { API_BASE_URL } from "./config";
+
 // 形は api/model.go の sharedCategoryJSON / sharedPinJSON に合わせる（ownerId や期限は含まれない）
 export type SharedCategory = { name: string; color: string };
 export type SharedPin = {
@@ -21,10 +23,9 @@ const VIEW_KEY_PATTERN = /^[A-Za-z0-9]{22}$/;
 const RETRY_DELAY_MS = 1000;
 
 async function fetchOnce(viewKey: string): Promise<SharedResult> {
-  const base = process.env.NEXT_PUBLIC_API_BASE_URL;
-  if (!base) return { status: "error" };
+  if (!API_BASE_URL) return { status: "error" };
   try {
-    const res = await fetch(`${base}/share/${viewKey}`, { cache: "no-store" });
+    const res = await fetch(`${API_BASE_URL}/share/${viewKey}`, { cache: "no-store" });
     if (res.status === 404) return { status: "not_found" };
     if (!res.ok) return { status: "error" };
     return { status: "ok", data: (await res.json()) as SharedData };

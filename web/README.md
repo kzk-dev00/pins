@@ -51,6 +51,7 @@ npm run dev
 | `src/components/PinMemo/PinMemoSharePanel.tsx` | メニューの中の共有画面（URL の作成・コピー・作り直し・共有をやめる） |
 | `src/components/PinMemo/usePinFront.ts` | ピンが重なったとき、最後に触ったピンを一番上に出す（触った順を覚える） |
 | `src/components/PinMemo/useSheetHeight.ts` | 下から出るシートの高さを測る（帰属表示を持ち上げるため） |
+| `src/components/PinMemo/useEscapeKey.ts` | Esc を押したときの処理（自分の地図・共有ページ・メニューで共通） |
 | `src/app/share/[viewKey]/page.tsx` | 共有ページ。サーバー側でデータを取り、OGP のタグを出す |
 | `src/components/Share/SharedMapLoader.tsx` | 共有ページの地図をブラウザでだけ読み込む |
 | `src/components/Share/SharedMap.tsx` | 共有ページの地図（見るだけ。ピンが収まる初期位置） |
@@ -58,14 +59,19 @@ npm run dev
 | `src/components/Share/SharedMenu.tsx` | 共有ページの ☰ メニュー（「pins とは」と「お問い合わせ」だけ） |
 | `src/components/About/AboutContent.tsx` | 「pins とは」の本文（自分の地図と共有ページで共通） |
 | `src/components/About/AboutContact.tsx` | 「お問い合わせ」の本文（メールアドレスと mailto: のリンク） |
+| `src/components/About/AboutMenu.tsx` | メニューの「pins とは」「お問い合わせ」「プライバシーポリシー」（自分の地図と共有ページで共通） |
 | `src/components/About/About.module.css` | 「pins とは」「お問い合わせ」のスタイル |
 | `src/lib/sharedCategory.ts` | 共有ページのデータの取得（GSI の反映遅れに備えて1回だけ再試行） |
 | `src/lib/api.ts` | API の呼び出し |
 | `src/lib/guestToken.ts` | ゲストトークン（localStorage に保存） |
-| `src/lib/config.ts` | 環境変数から読む設定（地図の初期位置） |
+| `src/lib/config.ts` | 環境変数から読む設定（API の URL、地図の初期位置） |
 | `src/lib/lastView.ts` | 最後に見ていた地図の位置（localStorage に保存） |
 | `src/lib/hiddenCategories.ts` | 表示を OFF にしたカテゴリの ID（localStorage に保存） |
 | `src/lib/categoryColors.ts` | カテゴリの8色と、次に使う色 |
+| `src/lib/limits.ts` | 入力の文字数の上限とチェック（API と同じ値） |
+| `src/lib/contact.ts` | お問い合わせのメールアドレス |
+| `src/lib/storage.ts` | localStorage の読み書き（使えないときも例外を出さない） |
+| `src/lib/map.ts` | 地図の共通の設定（スタイル・帰属表示・Worker の場所） |
 | `scripts/copy-maplibre-worker.mjs` | MapLibre の Web Worker を `public/` にコピーする。`npm run dev` / `build` の前に自動で実行される |
 
 MapLibre は Worker を本体のファイルの隣から読もうとするが、Next.js（Turbopack）でまとめるとそこに Worker がなくなり、地図が描画されない。そのため `public/` から配信し、`setWorkerUrl` で場所を指定している。

@@ -2,11 +2,13 @@
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import Map, { GeolocateControl, Marker, NavigationControl } from "react-map-gl/maplibre";
-import { setWorkerUrl, type LngLatBoundsLike } from "maplibre-gl";
+import type { LngLatBoundsLike } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { COMPACT_ATTRIBUTION, collapseAttribution } from "@/lib/attribution";
+import { collapseAttribution } from "@/lib/attribution";
 import { DEFAULT_VIEW } from "@/lib/config";
+import { BASE_MAP_PROPS } from "@/lib/map";
 import type { SharedCategory, SharedPin } from "@/lib/sharedCategory";
+import { useEscapeKey } from "../PinMemo/useEscapeKey";
 import { usePinFront } from "../PinMemo/usePinFront";
 import { useSheetHeight } from "../PinMemo/useSheetHeight";
 import PinMemoPinIcon from "../PinMemo/PinMemoPinIcon";
@@ -14,10 +16,6 @@ import mapStyles from "../PinMemo/PinMemoMap.module.css";
 import SharedMenu from "./SharedMenu";
 import styles from "./Shared.module.css";
 
-// Worker は public/ から配信する（scripts/copy-maplibre-worker.mjs がコピーしている）
-setWorkerUrl("/maplibre-gl-worker.mjs");
-
-const MAP_STYLE = "https://tiles.openfreemap.org/styles/liberty";
 const SINGLE_PIN_ZOOM = 15;
 
 // 初期位置：2本以上なら全部が収まる範囲、1本ならそのピンを中心にズーム15、0本なら環境変数の初期位置。
@@ -59,14 +57,7 @@ export default function SharedMap({ category, pins }: Props) {
   }, []);
 
   // Escでシートを閉じる（メニューを開いているときはメニュー側で閉じる）
-  useEffect(() => {
-    if (!sheetOpen || menuOpen) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpenPin(null);
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [sheetOpen, menuOpen]);
+  useEscapeKey(() => setOpenPin(null), sheetOpen && !menuOpen);
 
   return (
     <div
@@ -75,10 +66,8 @@ export default function SharedMap({ category, pins }: Props) {
       style={{ "--sheet-height": `${sheetHeight}px` } as CSSProperties}
     >
       <Map
+        {...BASE_MAP_PROPS}
         initialViewState={initialViewState}
-        mapStyle={MAP_STYLE}
-        style={{ width: "100%", height: "100%" }}
-        attributionControl={COMPACT_ATTRIBUTION}
         onLoad={collapseAttribution} // 帰属表示は ⓘ だけにたたんでおき、押したときだけ出す
         onClick={() => setOpenPin(null)} // シートの外（地図）をタップしたら閉じる。ピンは立てない
       >

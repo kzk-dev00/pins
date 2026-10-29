@@ -1,5 +1,7 @@
 // 最後に見ていた地図の位置を localStorage に覚えておき、次に開いたときにそこから表示する。
 
+import { loadJSON, saveJSON } from "./storage";
+
 const STORAGE_KEY = "pin-memo-last-view";
 
 export type MapView = { latitude: number; longitude: number; zoom: number };
@@ -16,21 +18,11 @@ function isValidView(v: unknown): v is MapView {
 
 // 保存した位置を返す。ない・壊れている・読めないときは null
 export function loadLastView(): MapView | null {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const view: unknown = JSON.parse(raw);
-    return isValidView(view) ? view : null;
-  } catch {
-    return null;
-  }
+  return loadJSON(STORAGE_KEY, isValidView);
 }
 
+// 保存できなくても、次回は初期位置から開くだけ
 export function saveLastView(view: MapView): void {
-  try {
-    const { latitude, longitude, zoom } = view;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ latitude, longitude, zoom }));
-  } catch {
-    // 保存できなくても、次回は初期位置から開くだけなので無視する
-  }
+  const { latitude, longitude, zoom } = view;
+  saveJSON(STORAGE_KEY, { latitude, longitude, zoom });
 }

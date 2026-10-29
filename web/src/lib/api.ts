@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "./config";
 import { getGuestToken } from "./guestToken";
 
 // 形は api/model.go の categoryJSON / pinJSON に合わせる
@@ -37,10 +38,8 @@ export class ApiError extends Error {
   }
 }
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
-
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
-  if (!BASE_URL) {
+  if (!API_BASE_URL) {
     throw new ApiError(0, "config", "APIのURLが設定されていません（NEXT_PUBLIC_API_BASE_URL）");
   }
 
@@ -49,7 +48,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 
   let res: Response;
   try {
-    res = await fetch(`${BASE_URL}${path}`, {
+    res = await fetch(`${API_BASE_URL}${path}`, {
       method,
       headers,
       body: body === undefined ? undefined : JSON.stringify(body),

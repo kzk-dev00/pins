@@ -1,13 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { CONTACT_EMAIL } from "@/lib/contact";
 import styles from "./privacy.module.css";
 
 export const metadata: Metadata = {
   title: "プライバシーポリシー | pins",
   description: "pinsのプライバシーポリシー",
 };
-
-const CONTACT_EMAIL = "pins.servicejp@gmail.com";
 
 // プライバシーポリシー。内容はdesign.mdの仕様（保存するデータ・期限・共有）に合わせる
 export default function PrivacyPage() {

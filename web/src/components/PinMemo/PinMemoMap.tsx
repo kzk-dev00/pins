@@ -8,31 +8,27 @@ import Map, {
   type GeolocateControlInstance,
   type MapLayerMouseEvent,
 } from "react-map-gl/maplibre";
-import { setWorkerUrl } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import * as api from "@/lib/api";
 import type { Category, Pin } from "@/lib/api";
 import { nextCategoryColor } from "@/lib/categoryColors";
-import { COMPACT_ATTRIBUTION, collapseAttribution } from "@/lib/attribution";
+import { collapseAttribution } from "@/lib/attribution";
 import { DEFAULT_VIEW } from "@/lib/config";
 import { loadHiddenCategoryIds, saveHiddenCategoryIds } from "@/lib/hiddenCategories";
 import { loadLastView, saveLastView } from "@/lib/lastView";
+import { MEMO_MAX_LENGTH, TITLE_MAX_LENGTH } from "@/lib/limits";
+import { BASE_MAP_PROPS } from "@/lib/map";
 import { SAMPLE_PINS, offsetPosition } from "@/lib/samplePins";
 import PinMemoCategoryPicker from "./PinMemoCategoryPicker";
 import PinMemoMenu from "./PinMemoMenu";
 import PinMemoPinIcon from "./PinMemoPinIcon";
+import { useEscapeKey } from "./useEscapeKey";
 import { usePinFront } from "./usePinFront";
 import { useSheetHeight } from "./useSheetHeight";
 import styles from "./PinMemoMap.module.css";
 
-// Worker は public/ から配信する（scripts/copy-maplibre-worker.mjs がコピーしている）
-setWorkerUrl("/maplibre-gl-worker.mjs");
-
-const MAP_STYLE = "https://tiles.openfreemap.org/styles/liberty";
 // 初めて開いたとき、カテゴリがなければ自動で作り、見本のピンを入れる
 const DEFAULT_CATEGORY_NAME = "サンプルカテゴリ";
-const TITLE_MAX_LENGTH = 20;
-const MEMO_MAX_LENGTH = 200;
 
 // 編集中のピン。pin が null なら新規（まだ保存していない下書き）。categoryIds はシートで選んでいるカテゴリ
 type Editing = { pin: Pin | null; lat: number; lng: number; title: string; memo: string; categoryIds: string[] };
@@ -148,14 +144,35 @@ export default function PinMemoMap() {
   const decideSampleBase = (lat: number, lng: number) => setSampleBase((prev) => prev ?? { lat, lng });
 
   // Esc でシートを閉じる（メニューを開いているときはメニュー側で閉じる）
-  useEffect(() => {
-    if (!editing || menuOpen) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !saving) setEditing(null);
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [editing, menuOpen, saving]);
+  useEscapeKey(() => {
+    if (!saving) setEditing(null);
+  }, sheetOpen && !menuOpen);
+
+  // 保存中の表示とエラーの表示をまとめて行う。成功したら true
+  const runSaving = async (action: () => Promise<void>): Promise<boolean> => {
+    setSaving(true);
+    setError(null);
+    try {
+      await action();
+      return true;
+    } catch (err) {
+      setError(api.errorMessage(err));
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // 一覧の中の1件を差し替える
+  const replacePin = (pin: Pin) => setPins((prev) => prev.map((p) => (p.pinId === pin.pinId ? pin : p)));
+  const patchCategory = (categoryId: string, patch: Partial<Category>) =>
+    setCategories((prev) => prev.map((c) => (c.categoryId === categoryId ? { ...c, ...patch } : c)));
+
+  // 表示を OFF にしたカテゴリを変えて、localStorage にも保存する
+  const updateHiddenIds = (next: string[]) => {
+    setHiddenIds(next);
+    saveHiddenCategoryIds(next);
+  };
 
   // 地図をタップ → その位置に下書きピンを置いてメモ入力を開く。
   // シートを開いているときは、シートの外をタップしたことになるので閉じるだけにする
@@ -189,14 +206,11 @@ export default function PinMemoMap() {
   const handleSave = async (e: FormEvent) => {
     e.preventDefault();
     if (!editing || saving || editing.categoryIds.length === 0) return;
-    setSaving(true);
-    setError(null);
-    try {
+    await runSaving(async () => {
       const title = editing.title.trim();
       const memo = editing.memo.trim();
       if (editing.pin) {
-        const updated = await api.updatePin(editing.pin.pinId, { title, memo, categoryIds: editing.categoryIds });
-        setPins((prev) => prev.map((p) => (p.pinId === updated.pinId ? updated : p)));
+        replacePin(await api.updatePin(editing.pin.pinId, { title, memo, categoryIds: editing.categoryIds }));
       } else {
         const created = await api.createPin({
           lat: editing.lat,
@@ -209,38 +223,27 @@ export default function PinMemoMap() {
         bringToFront(created.pinId); // 新しく立てたピンは一番上に出す
       }
       setEditing(null);
-    } catch (err) {
-      setError(api.errorMessage(err));
-    } finally {
-      setSaving(false);
-    }
+    });
   };
 
   const handleDelete = async () => {
     const pin = editing?.pin;
     if (!pin || saving) return;
-    setSaving(true);
-    setError(null);
-    try {
+    await runSaving(async () => {
       await api.deletePin(pin.pinId);
       setPins((prev) => prev.filter((p) => p.pinId !== pin.pinId));
       setEditing(null);
-    } catch (err) {
-      setError(api.errorMessage(err));
-    } finally {
-      setSaving(false);
-    }
+    });
   };
 
   // ドラッグで位置を直す。先に画面を動かし、保存に失敗したら元の位置に戻す
   const handleDragEnd = async (pin: Pin, lat: number, lng: number) => {
     setError(null);
-    setPins((prev) => prev.map((p) => (p.pinId === pin.pinId ? { ...p, lat, lng } : p)));
+    replacePin({ ...pin, lat, lng });
     try {
-      const updated = await api.updatePin(pin.pinId, { lat, lng });
-      setPins((prev) => prev.map((p) => (p.pinId === updated.pinId ? updated : p)));
+      replacePin(await api.updatePin(pin.pinId, { lat, lng }));
     } catch (err) {
-      setPins((prev) => prev.map((p) => (p.pinId === pin.pinId ? pin : p)));
+      replacePin(pin);
       setError(api.errorMessage(err));
     }
   };
@@ -248,80 +251,38 @@ export default function PinMemoMap() {
   // ---- カテゴリ（メニューから） ----
 
   const handleToggleCategory = (categoryId: string) => {
-    const next = hiddenSet.has(categoryId) ? hiddenIds.filter((id) => id !== categoryId) : [...hiddenIds, categoryId];
-    setHiddenIds(next);
-    saveHiddenCategoryIds(next);
+    updateHiddenIds(hiddenSet.has(categoryId) ? hiddenIds.filter((id) => id !== categoryId) : [...hiddenIds, categoryId]);
   };
 
-  const handleCreateCategory = async (name: string) => {
-    setSaving(true);
-    setError(null);
-    try {
+  const handleCreateCategory = (name: string) =>
+    runSaving(async () => {
       const created = await api.createCategory({ name, color: nextCategoryColor(categories.length) });
       setCategories((prev) => [...prev, created]);
-      return true;
-    } catch (err) {
-      setError(api.errorMessage(err));
-      return false;
-    } finally {
-      setSaving(false);
-    }
-  };
+    });
 
-  const handleRenameCategory = async (categoryId: string, name: string) => {
-    setSaving(true);
-    setError(null);
-    try {
-      const updated = await api.updateCategory(categoryId, { name });
-      setCategories((prev) => prev.map((c) => (c.categoryId === updated.categoryId ? updated : c)));
-      return true;
-    } catch (err) {
-      setError(api.errorMessage(err));
-      return false;
-    } finally {
-      setSaving(false);
-    }
-  };
+  const handleRenameCategory = (categoryId: string, name: string) =>
+    runSaving(async () => {
+      patchCategory(categoryId, await api.updateCategory(categoryId, { name }));
+    });
 
   // 共有 URL を作る（共有中なら作り直す。確認ダイアログは SharePanel 側で出す）
-  const handleShareCategory = async (categoryId: string) => {
-    setSaving(true);
-    setError(null);
-    try {
-      const viewKey = await api.shareCategory(categoryId);
-      setCategories((prev) => prev.map((c) => (c.categoryId === categoryId ? { ...c, viewKey } : c)));
-      return true;
-    } catch (err) {
-      setError(api.errorMessage(err));
-      return false;
-    } finally {
-      setSaving(false);
-    }
-  };
+  const handleShareCategory = (categoryId: string) =>
+    runSaving(async () => {
+      patchCategory(categoryId, { viewKey: await api.shareCategory(categoryId) });
+    });
 
-  const handleUnshareCategory = async (categoryId: string) => {
-    setSaving(true);
-    setError(null);
-    try {
+  const handleUnshareCategory = (categoryId: string) =>
+    runSaving(async () => {
       await api.unshareCategory(categoryId);
-      setCategories((prev) => prev.map((c) => (c.categoryId === categoryId ? { ...c, viewKey: undefined } : c)));
-      return true;
-    } catch (err) {
-      setError(api.errorMessage(err));
-      return false;
-    } finally {
-      setSaving(false);
-    }
-  };
+      patchCategory(categoryId, { viewKey: undefined });
+    });
 
   const handleDeleteCategory = async (category: Category) => {
     const ok = window.confirm(
       `「${category.name}」を削除しますか？\nこのカテゴリにだけ入っているピンも一緒に削除されます。`,
     );
     if (!ok) return;
-    setSaving(true);
-    setError(null);
-    try {
+    await runSaving(async () => {
       await api.deleteCategory(category.categoryId);
       setCategories((prev) => prev.filter((c) => c.categoryId !== category.categoryId));
       // API と同じく、各ピンからこのカテゴリを外し、どのカテゴリにも入らなくなったピンは消す
@@ -331,15 +292,9 @@ export default function PinMemoMap() {
           .filter((p) => p.categoryIds.length > 0),
       );
       if (hiddenSet.has(category.categoryId)) {
-        const next = hiddenIds.filter((id) => id !== category.categoryId);
-        setHiddenIds(next);
-        saveHiddenCategoryIds(next);
+        updateHiddenIds(hiddenIds.filter((id) => id !== category.categoryId));
       }
-    } catch (err) {
-      setError(api.errorMessage(err));
-    } finally {
-      setSaving(false);
-    }
+    });
   };
 
   return (
@@ -349,11 +304,9 @@ export default function PinMemoMap() {
       style={{ "--sheet-height": `${sheetHeight}px` } as CSSProperties}
     >
       <Map
+        {...BASE_MAP_PROPS}
         // 前回の位置から開く。初回は環境変数の初期位置（東京駅）
         initialViewState={lastView ?? DEFAULT_VIEW}
-        mapStyle={MAP_STYLE}
-        style={{ width: "100%", height: "100%" }}
-        attributionControl={COMPACT_ATTRIBUTION}
         onClick={handleMapClick}
         onLoad={(e) => {
           collapseAttribution(e); // 帰属表示は ⓘ だけにたたんでおき、押したときだけ出す
