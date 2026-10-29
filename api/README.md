@@ -50,5 +50,5 @@ Next.js → API Gateway（HTTP API, ANY /{proxy+}） → Lambda（このコー�
 ## Lambda の設定
 
 - ランタイム：`provided.al2023`、アーキテクチャ：`arm64`、ハンドラ：`bootstrap`
-- 実行ロール：`iam-policy.json` の権限と、ログ出力用の `AWSLambdaBasicExecutionRole`
+- 実行ロール：`iam-policy.json` の権限と、ログ出力用の `AWSLambdaBasicExecutionRole`。`<ACCOUNT_ID>` は AWS のアカウントIDに置き換えて使う
 - API Gateway（HTTP API）のルートは `ANY /{proxy+}` の1本。ペイロードはバージョン 2.0
