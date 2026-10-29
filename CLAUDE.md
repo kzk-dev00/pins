@@ -2,7 +2,9 @@
 
 地図をタップしてピンとメモを残し、カテゴリ単位で共有できる Web アプリ。
 
-**作業の前に必ず `design.md` を読むこと。** 技術構成・DynamoDB のテーブル設計・API 仕様・ゲストの期限（TTL）のルール・AWS アカウントの注意点・進み具合がまとまっている。設計は claude.ai での相談で決めたもので、実装はこれに従う。設計を変えるときは、先にユーザーに確認してから `design.md` も更新する。
+**作業の前に必ず `design.md` と `docs/private/ops.md` を読むこと。** `design.md` には技術構成・DynamoDB のテーブル設計・API 仕様・FE の仕様、`docs/private/ops.md` には AWS アカウントの注意点・ゲストの期限（TTL）のルール・上限の値・デプロイしたリソース・進み具合がまとまっている。設計は claude.ai での相談で決めたもので、実装はこれに従う。設計を変えるときは、先にユーザーに確認してから `design.md` か `docs/private/ops.md` も更新する。
+
+`docs/private/ops.md` は GitHub にない非公開のメモで、このPCにだけある（`.gitignore` で除外している）。絶対にコミットしない。
 
 ## 構成
 
