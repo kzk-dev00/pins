@@ -161,7 +161,7 @@ func (in *categoryInput) validate() error {
 	if in.Name != nil {
 		name, ok := normalizeText(*in.Name, 1, maxCategoryNameLen)
 		if !ok {
-			return invalidInput("カテゴリ名は1〜30文字で入力してください")
+			return errInvalidCategoryName
 		}
 		in.Name = &name
 	}
@@ -180,10 +180,8 @@ func (a *App) listCategories(ctx context.Context, r *request) (events.APIGateway
 	if err != nil {
 		return events.APIGatewayV2HTTPResponse{}, err
 	}
-	for i := range cats {
-		if err := a.renewAndSave(ctx, &cats[i]); err != nil {
-			return events.APIGatewayV2HTTPResponse{}, err
-		}
+	if err := a.renewAllAndSave(ctx, cats); err != nil {
+		return events.APIGatewayV2HTTPResponse{}, err
 	}
 	slices.SortFunc(cats, func(x, y Category) int {
 		return cmp.Or(
@@ -207,7 +205,7 @@ func (a *App) createCategory(ctx context.Context, r *request) (events.APIGateway
 		return events.APIGatewayV2HTTPResponse{}, err
 	}
 	if in.Name == nil {
-		return events.APIGatewayV2HTTPResponse{}, invalidInput("カテゴリ名は1〜30文字で入力してください")
+		return events.APIGatewayV2HTTPResponse{}, errInvalidCategoryName
 	}
 	if err := in.validate(); err != nil {
 		return events.APIGatewayV2HTTPResponse{}, err
@@ -305,7 +303,7 @@ func (a *App) deleteCategory(ctx context.Context, r *request) (events.APIGateway
 		p.CategoryIDs = slices.DeleteFunc(p.CategoryIDs, func(id string) bool { return id == c.CategoryID })
 		if len(p.CategoryIDs) == 0 {
 			// どのカテゴリにも入らなくなったピンは削除する
-			if err := a.store.DeletePin(ctx, p.OwnerID, p.PinID); err != nil && !errors.Is(err, ErrNotFound) {
+			if err := ignoreNotFound(a.store.DeletePin(ctx, p.OwnerID, p.PinID)); err != nil {
 				return events.APIGatewayV2HTTPResponse{}, err
 			}
 			continue
@@ -314,11 +312,11 @@ func (a *App) deleteCategory(ctx context.Context, r *request) (events.APIGateway
 			p.ExpiresAt = exp
 		}
 		p.UpdatedAt = a.timestamp()
-		if err := a.store.UpdatePin(ctx, p); err != nil && !errors.Is(err, ErrNotFound) {
+		if err := ignoreNotFound(a.store.UpdatePin(ctx, p)); err != nil {
 			return events.APIGatewayV2HTTPResponse{}, err
 		}
 	}
-	if err := a.store.DeleteCategory(ctx, c.OwnerID, c.CategoryID); err != nil && !errors.Is(err, ErrNotFound) {
+	if err := ignoreNotFound(a.store.DeleteCategory(ctx, c.OwnerID, c.CategoryID)); err != nil {
 		return events.APIGatewayV2HTTPResponse{}, err
 	}
 	return noContent()
@@ -379,17 +377,17 @@ func (in *pinInput) validate() error {
 	if in.Title != nil {
 		title, ok := normalizeText(*in.Title, 0, maxPinTitleLen)
 		if !ok {
-			return invalidInput("タイトルは20文字以内で入力してください")
+			return errInvalidPinTitle
 		}
 		in.Title = &title
 	}
 	if in.Memo != nil && !validMemo(*in.Memo) {
-		return invalidInput("メモは200文字以内で入力してください")
+		return errInvalidMemo
 	}
 	if in.CategoryIDs != nil {
 		ids := *in.CategoryIDs
 		if len(ids) == 0 {
-			return invalidInput("カテゴリを1つ以上選んでください")
+			return errNoCategory
 		}
 		seen := make(map[string]bool, len(ids))
 		for _, id := range ids {
@@ -423,7 +421,7 @@ func (a *App) createPin(ctx context.Context, r *request) (events.APIGatewayV2HTT
 		return events.APIGatewayV2HTTPResponse{}, invalidInput("緯度と経度を指定してください")
 	}
 	if in.CategoryIDs == nil {
-		return events.APIGatewayV2HTTPResponse{}, invalidInput("カテゴリを1つ以上選んでください")
+		return events.APIGatewayV2HTTPResponse{}, errNoCategory
 	}
 	if err := in.validate(); err != nil {
 		return events.APIGatewayV2HTTPResponse{}, err
@@ -435,10 +433,8 @@ func (a *App) createPin(ctx context.Context, r *request) (events.APIGatewayV2HTT
 	if err := a.checkPinLimit(ctx, r.owner, cats, ""); err != nil {
 		return events.APIGatewayV2HTTPResponse{}, err
 	}
-	for i := range cats {
-		if err := a.renewAndSave(ctx, &cats[i]); err != nil {
-			return events.APIGatewayV2HTTPResponse{}, err
-		}
+	if err := a.renewAllAndSave(ctx, cats); err != nil {
+		return events.APIGatewayV2HTTPResponse{}, err
 	}
 
 	id, err := randomID(pinIDLen)
@@ -496,10 +492,8 @@ func (a *App) updatePin(ctx context.Context, r *request) (events.APIGatewayV2HTT
 			return events.APIGatewayV2HTTPResponse{}, err
 		}
 	}
-	for i := range cats {
-		if err := a.renewAndSave(ctx, &cats[i]); err != nil {
-			return events.APIGatewayV2HTTPResponse{}, err
-		}
+	if err := a.renewAllAndSave(ctx, cats); err != nil {
+		return events.APIGatewayV2HTTPResponse{}, err
 	}
 
 	if in.Lat != nil {
@@ -532,7 +526,7 @@ func (a *App) deletePin(ctx context.Context, r *request) (events.APIGatewayV2HTT
 	if err != nil {
 		return events.APIGatewayV2HTTPResponse{}, err
 	}
-	if err := a.store.DeletePin(ctx, p.OwnerID, p.PinID); err != nil && !errors.Is(err, ErrNotFound) {
+	if err := ignoreNotFound(a.store.DeletePin(ctx, p.OwnerID, p.PinID)); err != nil {
 		return events.APIGatewayV2HTTPResponse{}, err
 	}
 	return noContent()
@@ -741,6 +735,16 @@ func (a *App) renewAndSave(ctx context.Context, c *Category) error {
 	return a.saveCategory(ctx, *c, true)
 }
 
+// renewAllAndSave は cats のそれぞれに renewAndSave をする（延ばした期限は cats にも反映される）。
+func (a *App) renewAllAndSave(ctx context.Context, cats []Category) error {
+	for i := range cats {
+		if err := a.renewAndSave(ctx, &cats[i]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // saveCategory はカテゴリを保存する。期限を延ばしたときは、このカテゴリに入っているピンの期限も延ばす
 // （ピンの期限は、入っているカテゴリの期限のうち一番遅いもの）。
 func (a *App) saveCategory(ctx context.Context, c Category, renewed bool) error {
@@ -762,7 +766,7 @@ func (a *App) saveCategory(ctx context.Context, c Category, renewed bool) error 
 			continue
 		}
 		p.ExpiresAt = c.ExpiresAt
-		if err := a.store.UpdatePin(ctx, p); err != nil && !errors.Is(err, ErrNotFound) {
+		if err := ignoreNotFound(a.store.UpdatePin(ctx, p)); err != nil {
 			return err
 		}
 	}
@@ -779,6 +783,14 @@ func nextSortOrder(cats []Category) float64 {
 		maxOrder = max(maxOrder, c.SortOrder)
 	}
 	return maxOrder + sortOrderStep
+}
+
+// ignoreNotFound は ErrNotFound を nil にする（消す・直す途中でほかの操作に先に消されていてもよいとき）。
+func ignoreNotFound(err error) error {
+	if errors.Is(err, ErrNotFound) {
+		return nil
+	}
+	return err
 }
 
 func deref[T any](p *T) T {

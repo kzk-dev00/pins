@@ -31,6 +31,12 @@ var (
 	errPinNotFound      = &apiError{http.StatusNotFound, "pin_not_found", "ピンが見つかりません"}
 	errSharedNotFound   = &apiError{http.StatusNotFound, "shared_not_found", "共有されたカテゴリが見つかりません。共有が停止されたか、期限が切れた可能性があります"}
 	errInternal         = &apiError{http.StatusInternalServerError, "internal", "サーバーでエラーが発生しました。時間をおいてもう一度お試しください"}
+
+	// 入力のエラー。文字数は util.go の定数から作る
+	errInvalidCategoryName = invalidInput(fmt.Sprintf("カテゴリ名は1〜%d文字で入力してください", maxCategoryNameLen))
+	errInvalidPinTitle     = invalidInput(fmt.Sprintf("タイトルは%d文字以内で入力してください", maxPinTitleLen))
+	errInvalidMemo         = invalidInput(fmt.Sprintf("メモは%d文字以内で入力してください", maxMemoLen))
+	errNoCategory          = invalidInput("カテゴリを1つ以上選んでください")
 )
 
 func invalidInput(message string) *apiError {

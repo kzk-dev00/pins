@@ -36,11 +36,7 @@ func pinKey(ownerID, pinID string) map[string]types.AttributeValue {
 }
 
 func (s *DynamoStore) ListCategories(ctx context.Context, ownerID string) ([]Category, error) {
-	return queryAll[Category](ctx, s.client, &dynamodb.QueryInput{
-		TableName:                 aws.String(s.categoriesTable),
-		KeyConditionExpression:    aws.String("ownerId = :o"),
-		ExpressionAttributeValues: map[string]types.AttributeValue{":o": attrS(ownerID)},
-	})
+	return queryByOwner[Category](ctx, s.client, s.categoriesTable, ownerID)
 }
 
 func (s *DynamoStore) GetCategory(ctx context.Context, ownerID, categoryID string) (Category, error) {
@@ -80,11 +76,7 @@ func (s *DynamoStore) FindCategoryByViewKey(ctx context.Context, viewKey string)
 }
 
 func (s *DynamoStore) ListPins(ctx context.Context, ownerID string) ([]Pin, error) {
-	return queryAll[Pin](ctx, s.client, &dynamodb.QueryInput{
-		TableName:                 aws.String(s.pinsTable),
-		KeyConditionExpression:    aws.String("ownerId = :o"),
-		ExpressionAttributeValues: map[string]types.AttributeValue{":o": attrS(ownerID)},
-	})
+	return queryByOwner[Pin](ctx, s.client, s.pinsTable, ownerID)
 }
 
 func (s *DynamoStore) GetPin(ctx context.Context, ownerID, pinID string) (Pin, error) {
@@ -153,6 +145,15 @@ func getItem[T any](ctx context.Context, client *dynamodb.Client, table string, 
 	}
 	err = attributevalue.UnmarshalMap(out.Item, &v)
 	return v, err
+}
+
+// queryByOwner は table から持ち主の項目を全部返す。
+func queryByOwner[T any](ctx context.Context, client *dynamodb.Client, table, ownerID string) ([]T, error) {
+	return queryAll[T](ctx, client, &dynamodb.QueryInput{
+		TableName:                 aws.String(table),
+		KeyConditionExpression:    aws.String("ownerId = :o"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{":o": attrS(ownerID)},
+	})
 }
 
 // queryAll はページをたどって、クエリの結果を全部返す。
