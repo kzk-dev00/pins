@@ -52,11 +52,11 @@ const (
 	maxMemoLen         = 200
 )
 
-// normalizeCategoryName は前後の空白を消し、1〜30文字かを確かめる。
-func normalizeCategoryName(name string) (string, bool) {
-	name = strings.TrimSpace(name)
-	n := utf8.RuneCountInString(name)
-	return name, n >= 1 && n <= maxCategoryNameLen
+// normalizeText は前後の空白を消し、min〜max文字かを確かめる。
+func normalizeText(text string, min, max int) (string, bool) {
+	text = strings.TrimSpace(text)
+	n := utf8.RuneCountInString(text)
+	return text, n >= min && n <= max
 }
 
 // normalizeColor は #RRGGBB の形かを確かめ、大文字にそろえる。
@@ -67,12 +67,7 @@ func normalizeColor(color string) (string, bool) {
 	return strings.ToUpper(color), true
 }
 
-// normalizePinTitle は前後の空白を消し、0〜20文字かを確かめる（タイトルは空でもよい）。
-func normalizePinTitle(title string) (string, bool) {
-	title = strings.TrimSpace(title)
-	return title, utf8.RuneCountInString(title) <= maxPinTitleLen
-}
-
+// validMemo はメモが0〜200文字かを確かめる（空白は消さない）。
 func validMemo(memo string) bool {
 	return utf8.RuneCountInString(memo) <= maxMemoLen
 }

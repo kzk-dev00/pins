@@ -703,6 +703,27 @@ func TestRandomID(t *testing.T) {
 	}
 }
 
+func TestNormalizeText(t *testing.T) {
+	cases := []struct {
+		text     string
+		min, max int
+		want     string
+		ok       bool
+	}{
+		{"  厚木ランチ  ", 1, 30, "厚木ランチ", true},
+		{"", 0, 20, "", true},
+		{"   ", 1, 30, "", false},
+		{strings.Repeat("あ", 20), 0, 20, strings.Repeat("あ", 20), true},
+		{strings.Repeat("あ", 21), 0, 20, strings.Repeat("あ", 21), false},
+	}
+	for _, tc := range cases {
+		got, ok := normalizeText(tc.text, tc.min, tc.max)
+		if got != tc.want || ok != tc.ok {
+			t.Errorf("normalizeText(%q, %d, %d) = %q, %v。want %q, %v", tc.text, tc.min, tc.max, got, ok, tc.want, tc.ok)
+		}
+	}
+}
+
 func TestPinTitle(t *testing.T) {
 	e := newTestEnv(t)
 	as := guest(tokenA)

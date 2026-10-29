@@ -159,7 +159,7 @@ type categoryInput struct {
 // validate は入力をチェックし、名前と色を保存する形に整える。
 func (in *categoryInput) validate() error {
 	if in.Name != nil {
-		name, ok := normalizeCategoryName(*in.Name)
+		name, ok := normalizeText(*in.Name, 1, maxCategoryNameLen)
 		if !ok {
 			return invalidInput("カテゴリ名は1〜30文字で入力してください")
 		}
@@ -377,7 +377,7 @@ func (in *pinInput) validate() error {
 		return invalidInput("経度は-180〜180の範囲で指定してください")
 	}
 	if in.Title != nil {
-		title, ok := normalizePinTitle(*in.Title)
+		title, ok := normalizeText(*in.Title, 0, maxPinTitleLen)
 		if !ok {
 			return invalidInput("タイトルは20文字以内で入力してください")
 		}
