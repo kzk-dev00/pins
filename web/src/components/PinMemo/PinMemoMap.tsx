@@ -50,7 +50,7 @@ function loadInitialData() {
     let categories = list.categories;
     let sampleCategoryId: string | null = null;
     if (categories.length === 0) {
-      categories = [await api.createCategory({ name: DEFAULT_CATEGORY_NAME, color: nextCategoryColor(0) })];
+      categories = [await api.createCategory({ name: DEFAULT_CATEGORY_NAME, color: nextCategoryColor([]) })];
       sampleCategoryId = categories[0].categoryId;
     }
     // 全部のピンを1回で読み込み、カテゴリの ON/OFF は画面側で絞り込む
@@ -256,7 +256,7 @@ export default function PinMemoMap() {
 
   const handleCreateCategory = (name: string) =>
     runSaving(async () => {
-      const created = await api.createCategory({ name, color: nextCategoryColor(categories.length) });
+      const created = await api.createCategory({ name, color: nextCategoryColor(categories.map((c) => c.color)) });
       setCategories((prev) => [...prev, created]);
     });
 
